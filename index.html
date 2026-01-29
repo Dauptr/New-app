@@ -3,10 +3,15 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>TERMCHAT LT // AI INTEGRATED</title>
+<title>TermOS LT 🌌</title>
+<!-- PWA Meta Tags -->
+<meta name="theme-color" content="#050505">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+
 <script src="https://cdnjs.cloudflare.com/ajax/libs/paho-mqtt/1.0.1/mqttws31.min.js"></script>
 <style>
-/* --- STYLES --- */
+/* --- CORE STYLES --- */
 :root {
     --main-bg: #050505;
     --term-color: #33ff00;
@@ -14,11 +19,12 @@
     --danger-color: #ff3333;
     --system-color: #ffff00;
     --user-color: #ffffff;
-    --crt-scanline: rgba(18, 16, 16, 0.5);
+    --xp-color: #00ffff;
     --font-stack: 'Courier New', Courier, monospace;
+    --panel-bg: #0a0a0a;
 }
 
-* { box-sizing: border-box; margin: 0; padding: 0; outline: none; }
+* { box-sizing: border-box; margin: 0; padding: 0; outline: none; user-select: text; }
 
 body {
     background-color: #000;
@@ -29,109 +35,121 @@ body {
     justify-content: center; 
     align-items: center;
     overflow: hidden;
-    transition: background-color 0.5s ease;
+    font-size: 14px;
 }
 
-#crt-container {
+/* --- LAYOUT --- */
+#os-container {
     width: 100%; 
-    max-width: 900px; 
-    height: 90vh;
+    max-width: 1000px; 
+    height: 95vh;
     background-color: var(--main-bg); 
     border: 2px solid var(--term-color);
-    padding: 20px; 
-    display: flex; 
-    flex-direction: column;
+    display: grid; 
+    grid-template-rows: auto 1fr auto;
     position: relative; 
     box-shadow: var(--term-glow);
-    transition: all 0.3s ease;
-    margin: 20px;
+    margin: 10px;
 }
 
 /* Scanlines */
-#crt-container::before {
+#os-container::before {
     content: " "; display: block; position: absolute;
     top: 0; left: 0; bottom: 0; right: 0;
     background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.06), rgba(0, 255, 0, 0.02), rgba(0, 0, 255, 0.06));
-    z-index: 2; background-size: 100% 2px, 3px 100%; pointer-events: none;
+    z-index: 10; background-size: 100% 2px, 3px 100%; pointer-events: none;
 }
 
-/* Flicker */
-@keyframes flicker {
-    0% { opacity: 0.97; }
-    5% { opacity: 0.95; }
-    10% { opacity: 0.9; }
-    15% { opacity: 0.95; }
-    20% { opacity: 0.99; }
-    50% { opacity: 0.95; }
-    80% { opacity: 0.9; }
-    100% { opacity: 0.97; }
-}
-#crt-container::after {
-    content: " "; display: block; position: absolute;
-    top: 0; left: 0; bottom: 0; right: 0;
-    background: rgba(18, 16, 16, 0.1);
-    opacity: 0;
-    z-index: 2;
-    pointer-events: none;
-    animation: flicker 0.15s infinite;
-}
-
-.header {
+/* --- HEADER --- */
+header {
     border-bottom: 1px solid var(--term-color); 
-    padding-bottom: 10px; 
-    margin-bottom: 10px;
+    padding: 10px; 
     display: flex; 
     justify-content: space-between; 
-    text-transform: uppercase; 
-    font-weight: bold; 
-    z-index: 3;
-    text-shadow: var(--term-glow);
+    align-items: center;
+    z-index: 5;
+    background: var(--panel-bg);
 }
 
-.status-indicator {
-    display: inline-block;
-    width: 10px; height: 10px;
-    background-color: #555;
-    border-radius: 50%;
-    margin-right: 5px;
-    box-shadow: 0 0 5px currentColor;
+.header-left, .header-right {
+    display: flex;
+    gap: 15px;
+    align-items: center;
 }
-.status-online { background-color: var(--term-color); color: var(--term-color); }
-.status-offline { background-color: var(--danger-color); color: var(--danger-color); }
-.status-thinking { background-color: var(--system-color); color: var(--system-color); }
 
-#output { 
-    flex-grow: 1; 
-    overflow-y: auto; 
-    margin-bottom: 10px; 
-    white-space: pre-wrap; 
-    z-index: 3; 
-    font-size: 1.1rem; 
-    padding-right: 5px; 
+.xp-container {
+    width: 100px;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+.xp-bar-bg {
+    width: 100%; height: 6px; background: #333; border: 1px solid var(--term-color);
+}
+.xp-bar-fill {
+    height: 100%; width: 0%; background: var(--xp-color); transition: width 0.5s ease;
+}
+
+.avatar-display {
+    font-size: 1.2rem;
+    line-height: 1rem;
+}
+
+.room-badge {
+    border: 1px solid var(--system-color);
+    padding: 2px 8px;
+    font-weight: bold;
+    color: var(--system-color);
+}
+
+/* --- MAIN AREA --- */
+main {
+    display: grid;
+    grid-template-columns: 200px 1fr;
+    overflow: hidden;
+    z-index: 5;
+}
+
+.sidebar {
+    border-right: 1px solid var(--term-color);
+    padding: 10px;
+    overflow-y: auto;
+    background: rgba(0,0,0,0.3);
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+}
+
+.app-card {
+    border: 1px dashed var(--term-color);
+    padding: 5px;
+    cursor: pointer;
+    font-size: 0.8rem;
+    transition: background 0.2s;
+}
+.app-card:hover { background: rgba(51, 255, 0, 0.1); }
+
+#terminal-output {
+    padding: 20px;
+    overflow-y: auto;
+    white-space: pre-wrap;
     scroll-behavior: smooth;
     word-wrap: break-word;
+    position: relative;
 }
 
-/* Custom Scrollbar */
-#output::-webkit-scrollbar { width: 8px; }
-#output::-webkit-scrollbar-track { background: #000; }
-#output::-webkit-scrollbar-thumb { background: var(--term-color); border: 1px solid #000; }
-
-.input-line { 
-    display: flex; 
-    align-items: center; 
-    border-top: 1px solid var(--term-color); 
-    padding-top: 10px; 
-    z-index: 3; 
+/* --- FOOTER --- */
+footer {
+    border-top: 1px solid var(--term-color);
+    padding: 10px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background: var(--panel-bg);
+    z-index: 5;
 }
 
-.prompt { 
-    margin-right: 10px; 
-    font-weight: bold; 
-    animation: blink 1s step-end infinite; 
-    white-space: nowrap;
-}
-
+.prompt { font-weight: bold; animation: blink 1s step-end infinite; white-space: nowrap; }
 input[type="text"] {
     background: transparent; 
     border: none; 
@@ -139,540 +157,495 @@ input[type="text"] {
     font-family: var(--font-stack); 
     font-size: 1.1rem; 
     flex-grow: 1; 
-    text-shadow: 0 0 2px var(--term-color);
     text-transform: uppercase;
-    width: 100%;
 }
 
-.system-msg { color: var(--system-color); font-style: italic; opacity: 0.8; }
+.btn-icon {
+    background: none; border: 1px solid var(--term-color);
+    color: var(--term-color); padding: 5px 10px; cursor: pointer;
+    font-family: var(--font-stack);
+}
+.btn-icon:hover { background: var(--term-color); color: #000; }
+.btn-icon.active { background: var(--term-color); color: #000; animation: pulse 1.5s infinite; }
+
+/* --- TEXT STYLES --- */
+.system-msg { color: var(--system-color); opacity: 0.8; }
 .user-msg { color: var(--user-color); font-weight: bold; }
 .other-msg { color: var(--term-color); }
 .ai-msg { color: #00ffff; text-shadow: 0 0 5px #00ffff; }
 .error-msg { color: var(--danger-color); font-weight: bold; }
-.new-cmd-msg { color: #ff00ff; font-weight: bold; } /* Color for AI created commands */
+.cmd-msg { color: #ff00ff; }
 
+/* --- UTILS --- */
 .hidden { display: none !important; }
-
 @keyframes blink { 0% { opacity: 1; } 50% { opacity: 0; } 100% { opacity: 1; } }
+@keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.5; } 100% { opacity: 1; } }
 
-@media (max-width: 600px) {
-    #crt-container { height: 100vh; border: none; padding: 10px; margin: 0; }
-    .header { font-size: 0.8rem; }
+/* --- RESPONSIVE --- */
+@media (max-width: 700px) {
+    #os-container { margin: 0; height: 100vh; border: none; }
+    main { grid-template-columns: 1fr; }
+    .sidebar { display: none; position: absolute; top: 50px; left: 0; width: 100%; height: 80%; background: #000; border-bottom: 1px solid var(--term-color); }
+    .sidebar.show { display: flex; }
+    .header-left span { display: none; } /* Hide labels on mobile */
 }
 </style>
 </head>
 <body>
 
-<div id="crt-container">
-    <div class="header">
-        <div id="status-wrapper">
-            <span id="status-light" class="status-indicator"></span>
-            <span id="status-text">OFFLINE</span>
+<div id="os-container">
+    <header>
+        <div class="header-left">
+            <div id="avatar-box" class="avatar-display">o_o</div>
+            <div class="xp-container">
+                <span style="font-size:0.7rem">LVL <span id="level-display">1</span></span>
+                <div class="xp-bar-bg"><div id="xp-fill" class="xp-bar-fill"></div></div>
+            </div>
+            <button class="btn-icon" onclick="toggleSidebar()">📂 APPS</button>
         </div>
-        <span>## TERMOS LT // AI_CORE</span>
-    </div>
-
-    <div id="output">
-        <div id="intro-screen">
-            <p>INITIALIZING KERNEL...</p>
-            <p>LOADING Z.AI MODULES... [OK]</p>
-            <p>MOUNTING FILESYSTEM... [OK]</p>
-            <p>&nbsp;</p>
-            <p>AI INTEGRATION ACTIVE.</p>
-            <p>PRESS [ENTER] TO INITIALIZE UPLINK.</p>
+        <div class="room-badge" id="current-room">LIBRARY</div>
+        <div class="header-right">
+            <span id="net-status">OFFLINE</span>
         </div>
-        <div id="chat-room" class="hidden"></div>
-    </div>
+    </header>
 
-    <div class="input-line">
+    <main>
+        <div id="sidebar" class="sidebar">
+            <div style="color:var(--system-color)">INSTALLED PLUGINS</div>
+            <div id="plugin-list">
+                <div class="app-card" onclick="runPlugin('greeter')">👋 Auto-Greeter</div>
+                <div class="app-card" onclick="runPlugin('color_cycler')">🎨 Color Cycler</div>
+            </div>
+            <div style="color:var(--system-color)">SYSTEM</div>
+            <div class="app-card" onclick="executeSystemCommand('/stats')">📊 Stats</div>
+            <div class="app-card" onclick="executeSystemCommand('/avatar')">🎭 Avatar</div>
+            <div class="app-card" onclick="executeSystemCommand('/voice')">🗣️ Voice</div>
+        </div>
+        <div id="terminal-output">
+            <div id="intro">
+                <p>BOOTING TermOS LT v2.0...</p>
+                <p>LOADING MULTIVERSE PROTOCOLS...</p>
+                <p>INITIALIZING AI CORE (GROQ/ZHIPU)...</p>
+                <p>&nbsp;</p>
+                <p>WELCOME BACK, USER.</p>
+                <p>TYPE /HELP FOR COMMANDS.</p>
+            </div>
+        </div>
+    </main>
+
+    <footer>
         <span class="prompt">></span>
-        <input type="text" id="command-input" autocomplete="off" autofocus placeholder="AWAITING INPUT...">
-    </div>
+        <input type="text" id="command-input" autocomplete="off" autofocus placeholder="Enter command or chat...">
+        <button class="btn-icon" id="voice-btn" onclick="toggleVoice()">🎤</button>
+        <button class="btn-icon" onclick="sendMessage()">⚡</button>
+    </footer>
 </div>
 
 <script>
 /* --- CONFIGURATION --- */
-const MQTT_HOST = "broker.hivemq.com";
-const MQTT_PORT = 8884; 
-const MQTT_TOPIC = "termchat/lt/ai";
-const ZAI_API_KEY = "42b0a4fbe60e4568ba1b74d5e8d030d6.xSVMYljtqVXmRr33";
+const CONFIG = {
+    mqtt: { host: "broker.hivemq.com", port: 8884, baseTopic: "termos/lt/v3" },
+    keys: {
+        groq: "gsk_xxxxx", // PLACEHOLDER: Add Groq Key here for speed
+        zhipu: "42b0a4fbe60e4568ba1b74d5e8d030d6.xSVMYljtqVXmRr33"
+    },
+    rooms: {
+        library: { name: "LIBRARY", persona: "You are a helpful Librarian AI.", topic: "library" },
+        workshop: { name: "WORKSHOP", persona: "You are a Coder AI. Write code.", topic: "workshop" },
+        lounge: { name: "LOUNGE", persona: "You are a fun Gamer AI.", topic: "lounge" }
+    }
+};
 
-// If Z.ai has a specific endpoint, put it here. 
-// Since I cannot verify the exact URL without docs, I default to a standard structure.
-// If this fails, the app uses the Local Fallback Engine.
-const ZAI_API_URL = "https://api.z.ai/v1/chat/completions"; 
+/* --- STATE MANAGEMENT --- */
+const State = {
+    user: JSON.parse(localStorage.getItem('termos_user')) || { 
+        nick: "Anon" + Math.floor(Math.random()*1000), 
+        xp: 0, 
+        level: 1, 
+        room: 'library' 
+    },
+    client: null,
+    isConnected: false,
+    plugins: [],
+    voiceEnabled: false,
+    recognition: null,
+    synthesis: window.speechSynthesis
+};
 
-/* --- STATE --- */
-let client;
-let isConnected = false;
-let nickname = "Anon" + Math.floor(Math.random() * 9999);
-let inputMode = "INTRO";
-let audioContextInitialized = false;
+/* --- PERSISTENCE --- */
+function saveState() {
+    localStorage.setItem('termos_user', JSON.stringify(State.user));
+    updateUI();
+}
 
-// Dynamic Command Registry (Allows AI to create new commands)
-const dynamicCommands = {};
+function addXP(amount) {
+    State.user.xp += amount;
+    const nextLevel = State.user.level * 100;
+    if (State.user.xp >= nextLevel) {
+        State.user.level++;
+        State.user.xp -= nextLevel;
+        logSystem(`LEVEL UP! YOU ARE NOW LEVEL ${State.user.level}`, "ai-msg");
+        playSound('success');
+    }
+    saveState();
+}
 
-/* --- DOM ELEMENTS --- */
-const outputDiv = document.getElementById('output');
-const inputField = document.getElementById('command-input');
-const statusText = document.getElementById('status-text');
-const statusLight = document.getElementById('status-light');
-const introScreen = document.getElementById('intro-screen');
-const chatRoom = document.getElementById('chat-room');
+/* --- GAMIFICATION --- */
+const AVATARS = {
+    1: "o_o", 2: "o.o", 3: "(o.o)", 4: "/\\_/\\", 
+    5: "🧙", 6: "🧛", 7: "🤖", 8: "👾", 9: "👽", 10: "🌌"
+};
 
 /* --- AUDIO ENGINE --- */
-const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-
-function initAudio() {
-    if (!audioContextInitialized) {
-        if (audioCtx.state === 'suspended') {
-            audioCtx.resume().then(() => {
-                audioContextInitialized = true;
-            }).catch(e => console.error("Audio resume failed:", e));
-        } else {
-            audioContextInitialized = true;
-        }
-    }
-}
-
-function playSound(type = 'type') {
-    if (!audioContextInitialized) return;
-    try {
-        const osc = audioCtx.createOscillator();
-        const gainNode = audioCtx.createGain();
-        osc.connect(gainNode);
-        gainNode.connect(audioCtx.destination);
-
-        if (type === 'type') {
-            osc.type = 'square';
-            osc.frequency.setValueAtTime(800, audioCtx.currentTime);
-            gainNode.gain.setValueAtTime(0.05, audioCtx.currentTime);
-            osc.start();
-            osc.stop(audioCtx.currentTime + 0.05);
-        } else if (type === 'alert') {
-            osc.type = 'sawtooth';
-            osc.frequency.setValueAtTime(150, audioCtx.currentTime);
-            osc.frequency.exponentialRampToValueAtTime(40, audioCtx.currentTime + 0.3);
-            gainNode.gain.setValueAtTime(0.1, audioCtx.currentTime);
-            osc.start();
-            osc.stop(audioCtx.currentTime + 0.3);
-        } else if (type === 'success') {
-            osc.type = 'sine';
-            osc.frequency.setValueAtTime(440, audioCtx.currentTime);
-            osc.frequency.setValueAtTime(880, audioCtx.currentTime + 0.1);
-            gainNode.gain.setValueAtTime(0.1, audioCtx.currentTime);
-            osc.start();
-            osc.stop(audioCtx.currentTime + 0.2);
-        }
-    } catch (e) {}
-}
-
-/* --- INITIALIZATION --- */
-document.addEventListener('DOMContentLoaded', () => {
-    inputField.focus();
-});
-
-document.addEventListener('click', () => {
-    initAudio();
-    if (window.getSelection().toString() === '') {
-        inputField.focus();
-    }
-});
-
-inputField.addEventListener('keydown', (e) => {
-    initAudio(); 
-    playSound('type');
+const AudioCtx = new (window.AudioContext || window.webkitAudioContext)();
+function playSound(type) {
+    if (AudioCtx.state === 'suspended') AudioCtx.resume();
+    const osc = AudioCtx.createOscillator();
+    const gain = AudioCtx.createGain();
+    osc.connect(gain);
+    gain.connect(AudioCtx.destination);
     
-    if (e.key === 'Enter') {
-        const text = inputField.value.trim();
-        inputField.value = '';
-        
-        if (inputMode === 'INTRO') {
-            handleIntro();
-        } else if (inputMode === 'CHAT') {
-            handleChatCommand(text);
-        }
+    if (type === 'type') {
+        osc.frequency.value = 800;
+        gain.gain.value = 0.05;
+        osc.start(); osc.stop(AudioCtx.currentTime + 0.05);
+    } else if (type === 'alert') {
+        osc.frequency.setValueAtTime(150, AudioCtx.currentTime);
+        gain.gain.value = 0.1;
+        osc.start(); osc.stop(AudioCtx.currentTime + 0.2);
+    } else if (type === 'success') {
+        osc.frequency.setValueAtTime(440, AudioCtx.currentTime);
+        osc.frequency.setValueAtTime(880, AudioCtx.currentTime + 0.1);
+        gain.gain.value = 0.1;
+        osc.start(); osc.stop(AudioCtx.currentTime + 0.3);
     }
-});
-
-/* --- LOGIC HANDLERS --- */
-
-function handleIntro() {
-    introScreen.classList.add('hidden');
-    chatRoom.classList.remove('hidden');
-    inputMode = 'CHAT';
-    logToTerminal("INITIALIZING UPLINK...", "system");
-    setTimeout(() => connectMQTT(), 800);
 }
 
-function connectMQTT() {
-    const clientId = "termchat-client-" + Date.now() + "-" + Math.floor(Math.random() * 10000);
-    try {
-        client = new Paho.MQTT.Client(MQTT_HOST, MQTT_PORT, clientId);
-    } catch (e) {
-        logToTerminal("CRITICAL: MQTT INIT FAILED " + e.message, "error-msg");
+/* --- VOICE INTERFACE --- */
+function initVoice() {
+    if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
+        logSystem("VOICE API NOT SUPPORTED IN THIS BROWSER", "error-msg");
         return;
     }
-
-    client.onConnectionLost = onConnectionLost;
-    client.onMessageArrived = onMessageArrived;
-
-    const options = { 
-        timeout: 10, 
-        useSSL: true, 
-        mqttVersion: 4,      
-        cleanSession: true,   
-        onSuccess: onConnect, 
-        onFailure: onFailure,
-        keepAliveInterval: 30
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    State.recognition = new SpeechRecognition();
+    State.recognition.continuous = false;
+    State.recognition.lang = 'en-US';
+    State.recognition.onresult = (event) => {
+        const text = event.results[0][0].transcript;
+        document.getElementById('command-input').value = text;
+        processInput(text);
     };
-    
-    logToTerminal(`CONNECTING TO SECURE CHANNEL...`, "system");
-    try {
-        client.connect(options);
-    } catch (e) {
-        logToTerminal("CONNECTION THROW ERROR: " + e.message, "error-msg");
-    }
-}
-
-function handleChatCommand(text) {
-    if (!text) return;
-    
-    // AI Command
-    if (text.startsWith('/ai ')) {
-        const instruction = text.substring(4).trim();
-        if(!instruction) {
-            logToTerminal("AI ERROR: NO INSTRUCTION", "error-msg");
-            return;
-        }
-        processAIRequest(instruction);
-        return;
-    }
-
-    // Standard Commands
-    if (text.startsWith('/')) {
-        processCommand(text);
-        return;
-    }
-
-    // Chat Message
-    if (!isConnected) {
-        logToTerminal("CANNOT TRANSMIT: OFFLINE", "error-msg");
-        return;
-    }
-
-    const messageData = { nick: nickname, text: text, timestamp: new Date().toLocaleTimeString() };
-    try {
-        const message = new Paho.MQTT.Message(JSON.stringify(messageData));
-        message.destinationName = MQTT_TOPIC;
-        client.send(message);
-        renderMessage(nickname, text, 'user-msg');
-    } catch (err) {
-        logToTerminal("TRANSMISSION ERROR: " + err.message, "error-msg");
-    }
-}
-
-/* --- DYNAMIC COMMAND REGISTRY --- */
-// Allows AI to create commands like '/hello'
-function registerDynamicCommand(cmdName, responseText) {
-    const normalizedCmd = cmdName.startsWith('/') ? cmdName : '/' + cmdName;
-    dynamicCommands[normalizedCmd.toLowerCase()] = {
-        type: 'text',
-        response: responseText
+    State.recognition.onend = () => {
+        document.getElementById('voice-btn').classList.remove('active');
+        State.voiceEnabled = false;
     };
-    logToTerminal(`INSTALLED DYNAMIC COMMAND: ${normalizedCmd}`, "new-cmd-msg");
 }
 
-function registerDynamicAction(cmdName, actionType, value) {
-    const normalizedCmd = cmdName.startsWith('/') ? cmdName : '/' + cmdName;
-    dynamicCommands[normalizedCmd.toLowerCase()] = {
-        type: 'action',
-        action: actionType,
-        value: value
-    };
-    logToTerminal(`INSTALLED ACTION COMMAND: ${normalizedCmd}`, "new-cmd-msg");
-}
-
-function executeDynamicCommand(cmdName) {
-    const normalizedCmd = cmdName.toLowerCase();
-    if (dynamicCommands[normalizedCmd]) {
-        const cmd = dynamicCommands[normalizedCmd];
-        if (cmd.type === 'text') {
-            logToTerminal(cmd.response, "ai-msg");
-        } else if (cmd.type === 'action') {
-            // Execute the pre-validated action
-            executeAIAction({ type: cmd.action, value: cmd.value });
-        }
-    }
-}
-
-/* --- AI ENGINE (CORE) --- */
-
-async function processAIRequest(instruction) {
-    logToTerminal(`AI: PROCESSING "${instruction}"...`, "ai-msg");
-    setAIStatus(true);
-
-    // 1. Try Real API Call
-    try {
-        const response = await fetch(ZAI_API_URL, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${ZAI_API_KEY}`
-            },
-            body: JSON.stringify({
-                model: "zai-1", // Assuming a model name
-                messages: [
-                    { role: "system", content: "You are a terminal controller. Return ONLY valid JSON with an 'actions' array. Allowed actions: {'type': 'style', 'var': '--term-color', 'value': 'blue'}, {'type': 'style', 'var': '--main-bg', 'value': 'black'}, {'type': 'mqtt', 'text': 'Hello World'}, {'type': 'register', 'cmd': '/hello', 'text': 'Greetings'}." },
-                    { role: "user", content: instruction }
-                ]
-            })
-        });
-
-        if (!response.ok) throw new Error("API Status " + response.status);
-        const data = await response.json();
-        const content = data.choices[0].message.content;
-        
-        // Attempt to parse JSON from the AI
-        try {
-            const aiResponse = JSON.parse(content);
-            if (aiResponse.actions) {
-                aiResponse.actions.forEach(action => executeAIAction(action));
-                logToTerminal("AI: COMMANDS EXECUTED VIA API", "ai-msg");
-            } else {
-                throw new Error("No actions in response");
-            }
-        } catch (e) {
-            throw new Error("AI response format invalid");
-        }
-
-    } catch (e) {
-        // 2. FALLBACK: Local Logic Engine (Simulated AI)
-        logToTerminal(`AI: API UNREACHABLE. USING LOCAL LOGIC.`, "system");
-        await new Promise(r => setTimeout(r, 800));
-        const localActions = parseLocalLogic(instruction);
-        
-        if (localActions.length > 0) {
-            localActions.forEach(action => executeAIAction(action));
-            logToTerminal("AI: COMMANDS EXECUTED LOCALLY", "ai-msg");
-        } else {
-            logToTerminal("AI: INSTRUCTION UNCLEAR.", "error-msg");
-            logToTerminal("TRY: '/ai create command /beep'", "system");
-            logToTerminal("TRY: '/ai make background red'", "system");
-            logToTerminal("TRY: '/ai send hello world'", "system");
-        }
-    }
-
-    setAIStatus(false);
-}
-
-// The safe executor for both API and Local responses
-function executeAIAction(action) {
-    switch(action.type) {
-        case 'style':
-            if (action.var && action.value) {
-                document.documentElement.style.setProperty(action.var, action.value);
-                logToTerminal(`STYLE UPDATE: ${action.var} -> ${action.value}`, "system");
-            }
-            break;
-        case 'mqtt':
-            if (action.text && isConnected) {
-                const msg = new Paho.MQTT.Message(JSON.stringify({
-                    nick: "AI_BOT",
-                    text: action.text,
-                    timestamp: new Date().toLocaleTimeString()
-                }));
-                msg.destinationName = MQTT_TOPIC;
-                client.send(msg);
-                logToTerminal(`MQTT BROADCAST: ${action.text}`, "system");
-            } else {
-                logToTerminal("MQTT BROADCAST FAILED (OFFLINE)", "error-msg");
-            }
-            break;
-        case 'register':
-            if (action.cmd) {
-                registerDynamicCommand(action.cmd, action.text || "Command executed");
-            }
-            break;
-        case 'action_cmd':
-             if (action.cmd && action.target) {
-                 // Register a command that performs an action (like beep)
-                 registerDynamicAction(action.cmd, 'beep');
-             }
-             break;
-    }
-}
-
-// Local "Brain" for when API is offline
-function parseLocalLogic(instruction) {
-    const actions = [];
-    const lower = instruction.toLowerCase();
-
-    // Handle "Create command [cmd]"
-    const createMatch = lower.match(/create command (\S+)/);
-    if (createMatch) {
-        const newCmd = createMatch[1].toLowerCase();
-        actions.push({ type: 'register', cmd: newCmd, text: `Executing dynamic command ${newCmd}...` });
-        
-        // If the command is beep related, register the action
-        if (lower.includes('beep')) {
-            registerDynamicAction(newCmd, 'beep');
-        }
-        return actions;
-    }
-
-    // Handle Background Colors
-    if (lower.includes('background') || lower.includes('bg')) {
-        const colors = ['blue', 'red', 'black', 'green', 'white', 'purple', 'orange', 'yellow', 'grey'];
-        const found = colors.find(c => lower.includes(c));
-        if (found) actions.push({ type: 'style', var: '--main-bg', value: found });
-    }
-
-    // Handle Text Colors
-    if (lower.includes('text') || lower.includes('font')) {
-        const colors = ['blue', 'red', 'green', 'white', 'yellow', 'cyan'];
-        const found = colors.find(c => lower.includes(c));
-        if (found) actions.push({ type: 'style', var: '--term-color', value: found });
-    }
-
-    // Handle MQTT Send
-    if (lower.includes('send')) {
-        const sendText = instruction.replace(/send\s*/i, '');
-        actions.push({ type: 'mqtt', text: sendText });
-    }
-
-    return actions;
-}
-
-function setAIStatus(thinking) {
-    if (thinking) {
-        statusLight.className = "status-indicator status-thinking";
-        statusText.textContent = "AI PROCESSING";
+function toggleVoice() {
+    if (!State.recognition) initVoice();
+    if (State.voiceEnabled) {
+        State.recognition.stop();
     } else {
-        if (isConnected) {
-            statusLight.className = "status-indicator status-online";
-            statusText.textContent = "ONLINE";
-        } else {
-            statusLight.className = "status-indicator status-offline";
-            statusText.textContent = "OFFLINE";
+        State.recognition.start();
+        document.getElementById('voice-btn').classList.add('active');
+        State.voiceEnabled = true;
+    }
+}
+
+function speak(text) {
+    if (State.synthesis.speaking) State.synthesis.cancel();
+    const utterance = new SpeechSynthesisUtterance(text);
+    utterance.pitch = 0.8; // Retro pitch
+    utterance.rate = 1.2;
+    State.synthesis.speak(utterance);
+}
+
+/* --- MQTT CONNECTOR --- */
+function connectMQTT() {
+    const clientId = `termos-${State.user.nick}-${Date.now()}`;
+    State.client = new Paho.MQTT.Client(CONFIG.mqtt.host, CONFIG.mqtt.port, clientId);
+    
+    State.client.onConnectionLost = onConnectionLost;
+    State.client.onMessageArrived = onMessageArrived;
+
+    State.client.connect({
+        timeout: 10, useSSL: true, mqttVersion: 4, cleanSession: true,
+        onSuccess: () => {
+            State.isConnected = true;
+            document.getElementById('net-status').textContent = "ONLINE";
+            document.getElementById('net-status').style.color = "#33ff00";
+            joinRoom(State.user.room);
+            logSystem("UPLINK ESTABLISHED.", "system");
+        },
+        onFailure: (e) => {
+            logSystem("CONN FAILED: " + e.errorMessage, "error-msg");
+            setTimeout(connectMQTT, 5000);
         }
-    }
-}
-
-/* --- STANDARD COMMANDS --- */
-function processCommand(cmd) {
-    const parts = cmd.split(' ');
-    const command = parts[0].toLowerCase();
-
-    // Check Dynamic Commands First
-    if (dynamicCommands[command]) {
-        executeDynamicCommand(command);
-        return;
-    }
-
-    switch (command) {
-        case '/help':
-            logToTerminal("COMMANDS:", "system");
-            logToTerminal(" /ai [cmd] - AI Control", "system");
-            logToTerminal(" /ai create command /name - NEW FEATURE", "system");
-            logToTerminal(" /nick [name] - Change ID", "system");
-            logToTerminal(" /clear - Wipe Term", "system");
-            break;
-        case '/nick':
-            if (parts[1]) {
-                const oldNick = nickname;
-                nickname = parts[1];
-                logToTerminal(`ID UPDATED: ${oldNick} -> ${nickname}`, "system");
-            } else {
-                logToTerminal("ERROR: NAME REQUIRED", "error-msg");
-            }
-            break;
-        case '/clear':
-            chatRoom.innerHTML = '';
-            break;
-        default:
-            logToTerminal(`UNKNOWN: ${command}`, "error-msg");
-            break;
-    }
-}
-
-/* --- MQTT CALLBACKS --- */
-function onConnect() {
-    isConnected = true;
-    statusText.innerHTML = "ONLINE";
-    statusLight.className = "status-indicator status-online";
-    client.subscribe(MQTT_TOPIC);
-    logToTerminal("UPLINK ESTABLISHED.", "system");
-    logToTerminal(`WELCOME, ${nickname}.`, "system");
-    playSound('success');
-}
-
-function onFailure(responseObject) {
-    isConnected = false;
-    statusText.innerHTML = "ERR";
-    statusLight.className = "status-indicator status-offline";
-    const errMsg = (responseObject && responseObject.errorMessage) ? responseObject.errorMessage : "Unknown Error";
-    logToTerminal(`CONN FAILED: ${errMsg}`, "error-msg");
-    logToTerminal("RETRYING...", "system");
-    setTimeout(connectMQTT, 5000);
-}
-
-function onConnectionLost(responseObject) {
-    if (responseObject.errorCode !== 0) {
-        isConnected = false;
-        statusText.innerHTML = "OFFLINE";
-        statusLight.className = "status-indicator status-offline";
-        logToTerminal("UPLINK SEVERED.", "error-msg");
-        playSound('alert');
-    }
-}
-
-function onMessageArrived(message) {
-    try {
-        if (!message.payloadString) return;
-        const payload = JSON.parse(message.payloadString);
-        if (payload && payload.nick && payload.text) {
-            if (payload.nick !== nickname) {
-                renderMessage(payload.nick, payload.text, 'other-msg');
-                playSound('alert');
-            }
-        }
-    } catch (e) {}
-}
-
-/* --- UI HELPERS --- */
-function escapeHTML(str) {
-    if(!str) return "";
-    return String(str).replace(/[&<>"']/g, function(m) {
-        return ({
-            '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
-        })[m];
     });
 }
 
-function logToTerminal(text, type) {
-    const line = document.createElement('div');
-    line.className = type;
+function joinRoom(roomKey) {
+    if (!State.isConnected) return;
+    // Unsubscribe old
+    const oldTopic = `${CONFIG.mqtt.baseTopic}/${State.user.room}`;
+    State.client.unsubscribe(oldTopic);
+    
+    // Subscribe new
+    State.user.room = roomKey;
+    const newTopic = `${CONFIG.mqtt.baseTopic}/${roomKey}`;
+    State.client.subscribe(newTopic);
+    
+    document.getElementById('current-room').textContent = CONFIG.rooms[roomKey].name;
+    saveState();
+    logSystem(`ENTERED ROOM: ${CONFIG.rooms[roomKey].name}`, "system");
+}
+
+function onConnectionLost() {
+    State.isConnected = false;
+    document.getElementById('net-status').textContent = "OFFLINE";
+    document.getElementById('net-status').style.color = "red";
+}
+
+function onMessageArrived(msg) {
+    try {
+        const data = JSON.parse(msg.payloadString);
+        if (data.nick !== State.user.nick) {
+            logMessage(data.nick, data.text, "other-msg");
+            playSound('alert');
+            if (State.voiceEnabled) speak(`${data.nick} says ${data.text}`);
+        }
+    } catch (e) {}
+}
+
+/* --- AI ENGINE (MULTI-LAYER) --- */
+
+async function queryAI(prompt) {
+    logSystem("AI THINKING...", "ai-msg");
+    
+    // 1. Build Tools (Functions AI can call)
+    const tools = [
+        { type: "function", function: { name: "play_music", description: "Play a generated beep song" } },
+        { type: "function", function: { name: "switch_room", description: "Switch to Library, Workshop, or Lounge", parameters: { type: "object", properties: { room: { type: "string" } } } } },
+        { type: "function", function: { name: "create_plugin", description: "Add a JS plugin to the system", parameters: { type: "object", properties: { name: { type: "string" }, code: { type: "string" } } } } },
+        { type: "function", function: { name: "fix_app", description: "Generate JS code to fix/improve the app", parameters: { type: "object", properties: { code: { type: "string" } } } } }
+    ];
+
+    // 2. Try Groq (Fast)
+    let responseText = "";
+    let toolCalls = [];
+
+    try {
+        if (CONFIG.keys.groq !== "gsk_xxxxx") {
+            const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+                method: "POST", headers: { "Authorization": `Bearer ${CONFIG.keys.groq}`, "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    model: "llama3-70b-8192",
+                    messages: [{role: "system", content: CONFIG.rooms[State.user.room].persona}, {role: "user", content: prompt}],
+                    tools: tools, tool_choice: "auto"
+                })
+            });
+            const data = await res.json();
+            const msg = data.choices[0].message;
+            responseText = msg.content;
+            toolCalls = msg.tool_calls;
+        }
+    } catch (e) { console.log("Groq failed", e); }
+
+    // 3. Fallback to Zhipu (Z.ai) if Groq failed or no key
+    if (!responseText && !toolCalls) {
+        try {
+            const res = await fetch("https://open.bigmodel.cn/api/paas/v4/chat/completions", {
+                method: "POST", headers: { "Authorization": `Bearer ${CONFIG.keys.zhipu}`, "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    model: "glm-4",
+                    messages: [{role: "system", content: CONFIG.rooms[State.user.room].persona}, {role: "user", content: prompt}]
+                })
+            });
+            const data = await res.json();
+            responseText = data.choices[0].message.content;
+        } catch (e) {
+            responseText = "I apologize, but all neural pathways are currently congested (API Error).";
+        }
+    }
+
+    // 4. Execute Tool Calls (Agentic Behavior)
+    if (toolCalls) {
+        for (const tool of toolCalls) {
+            if (tool.function.name === "switch_room") {
+                const args = JSON.parse(tool.function.arguments);
+                joinRoom(args.room);
+                responseText = `Switched to ${args.room.toUpperCase()}.`;
+            }
+            if (tool.function.name === "fix_app") {
+                const args = JSON.parse(tool.function.arguments);
+                executeSafeCode(args.code);
+                responseText = "Applying system update...";
+            }
+            if (tool.function.name === "play_music") {
+                playSound('success'); // Simulating music
+                responseText = "🎵 Playing generated tunes... 🎵";
+            }
+        }
+    }
+
+    logSystem("TERMAI: " + responseText, "ai-msg");
+    speak(responseText);
+    addXP(5); // XP for using AI
+}
+
+/* --- SELF-HEALING & PLUGINS --- */
+
+function executeSafeCode(code) {
+    try {
+        logSystem("EXECUTING SYSTEM UPDATE...", "cmd-msg");
+        // SECURITY WARNING: In a real app, use a sandboxed iframe.
+        // Here we use a Function constructor to allow dynamic updates.
+        const func = new Function(code);
+        func();
+        logSystem("UPDATE APPLIED SUCCESSFULLY.", "system");
+    } catch (e) {
+        logSystem("UPDATE FAILED: " + e.message, "error-msg");
+    }
+}
+
+function runPlugin(name) {
+    logSystem(`RUNNING PLUGIN: ${name}`, "cmd-msg");
+    addXP(10);
+    
+    if (name === 'greeter') {
+        logMessage("SYS", "Welcome to TermOS LT! All systems operational.", "system");
+    }
+    if (name === 'color_cycler') {
+        const colors = ['#33ff00', '#ff00ff', '#00ffff', '#ffff00'];
+        const randomColor = colors[Math.floor(Math.random() * colors.length)];
+        document.documentElement.style.setProperty('--term-color', randomColor);
+        logSystem(`THEME CHANGED TO ${randomColor}`, "cmd-msg");
+    }
+}
+
+/* --- UI HANDLERS --- */
+
+function toggleSidebar() {
+    document.getElementById('sidebar').classList.toggle('show');
+}
+
+const inputField = document.getElementById('command-input');
+inputField.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') processInput(inputField.value);
+});
+
+async function processInput(rawText) {
+    const text = rawText.trim().toUpperCase();
+    inputField.value = "";
+    playSound('type');
+
+    if (!text) return;
+
+    // Commands
+    if (text.startsWith('/')) {
+        executeSystemCommand(text);
+        return;
+    }
+
+    // Chat
+    logMessage(State.user.nick, text, "user-msg");
+    
+    if (State.isConnected) {
+        const msg = new Paho.MQTT.Message(JSON.stringify({ nick: State.user.nick, text: text }));
+        msg.destinationName = `${CONFIG.mqtt.baseTopic}/${State.user.room}`;
+        State.client.send(msg);
+    }
+    
+    // Check if talking to AI
+    if (text.includes("AI") || text.includes("HELP")) {
+        queryAI(rawText);
+    }
+}
+
+function executeSystemCommand(cmd) {
+    const parts = cmd.split(' ');
+    const command = parts[0].toLowerCase();
+
+    switch (command) {
+        case '/help':
+            logSystem("COMMANDS: /ROOM [LIBRARY/WORKSHOP/LOUNGE], /NICK [NAME], /CLEAR, /AI [PROMPT]", "system");
+            break;
+        case '/room':
+            const r = parts[1]?.toLowerCase();
+            if (CONFIG.rooms[r]) joinRoom(r);
+            else logSystem("INVALID ROOM. TRY LIBRARY, WORKSHOP, LOUNGE.", "error-msg");
+            break;
+        case '/nick':
+            State.user.nick = parts[1] || "Anon";
+            saveState();
+            logSystem(`IDENTITY UPDATED: ${State.user.nick}`, "system");
+            break;
+        case '/clear':
+            document.getElementById('terminal-output').innerHTML = "";
+            break;
+        case '/stats':
+            logSystem(`STATS: LVL ${State.user.level} | XP ${State.user.xp} | ROOM ${State.user.room.toUpperCase()}`, "ai-msg");
+            break;
+        case '/avatar':
+            const avatar = AVATARS[State.user.level];
+            document.getElementById('avatar-box').textContent = avatar;
+            logSystem(`AVATAR UNLOCKED: ${avatar}`, "ai-msg");
+            break;
+        case '/ai':
+            const prompt = cmd.substring(4).trim();
+            if (prompt) queryAI(prompt);
+            else logSystem("PLEASE PROVIDE A PROMPT FOR AI", "error-msg");
+            break;
+        case '/voice':
+            toggleVoice();
+            break;
+        default:
+            logSystem(`UNKNOWN COMMAND: ${command}`, "error-msg");
+    }
+}
+
+function logMessage(nick, text, type) {
+    const div = document.createElement('div');
+    div.className = type;
+    const time = new Date().toLocaleTimeString([], { hour12: false, hour: '2-digit', minute:'2-digit' });
+    div.innerHTML = `<span style="opacity:0.5">[${time}]</span> <b>&lt;${nick}&gt;</b> ${text}`;
+    document.getElementById('terminal-output').appendChild(div);
+    scrollToBottom();
+    addXP(1); // XP for chatting
+}
+
+function logSystem(text, type) {
+    const div = document.createElement('div');
+    div.className = type;
     const time = new Date().toLocaleTimeString([], { hour12: false });
-    line.innerHTML = `[${time}] ${escapeHTML(text)}`;
-    chatRoom.appendChild(line);
+    div.innerHTML = `[${time}] ${text}`;
+    document.getElementById('terminal-output').appendChild(div);
     scrollToBottom();
 }
 
-function renderMessage(nick, text, cssClass) {
-    const line = document.createElement('div');
-    const time = new Date().toLocaleTimeString([], { hour12: false, hour: '2-digit', minute:'2-digit' });
-    line.innerHTML = `<span style="opacity:0.6">[${time}]</span> <span style="font-weight:bold">&lt;${escapeHTML(nick)}&gt;</span> ${escapeHTML(text)}`;
-    line.className = cssClass;
-    chatRoom.appendChild(line);
-    scrollToBottom();
+function updateUI() {
+    document.getElementById('level-display').innerText = State.user.level;
+    document.getElementById('avatar-box').textContent = AVATARS[State.user.level] || "o_o";
+    
+    // XP Bar Logic
+    const totalForNext = State.user.level * 100;
+    const percentage = (State.user.xp / totalForNext) * 100;
+    document.getElementById('xp-fill').style.width = `${percentage}%`;
 }
 
 function scrollToBottom() {
-    setTimeout(() => {
-        outputDiv.scrollTop = outputDiv.scrollHeight;
-    }, 0);
+    const el = document.getElementById('terminal-output');
+    el.scrollTop = el.scrollHeight;
 }
+
+/* --- BOOT --- */
+window.onload = () => {
+    updateUI();
+    connectMQTT();
+    logSystem("SYSTEM READY. TYPE /HELP.", "system");
+};
+
 </script>
 </body>
 </html>
