@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>TermOS LT 🌌 - Unified</title>
+<title>TermOS LT 🌌 - API Fixed</title>
 <meta name="theme-color" content="#050505">
 
 <!-- MQTT Library -->
@@ -33,7 +33,7 @@ body {
     overflow: hidden; font-size: 14px;
 }
 
-/* --- CRT OVERLAY (Retro Effect) --- */
+/* --- CRT OVERLAY --- */
 #crt-overlay {
     position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
     background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%), 
@@ -54,7 +54,6 @@ body {
     margin: 10px; z-index: 5;
 }
 
-/* --- HEADER --- */
 header {
     border-bottom: 1px solid var(--term-color); padding: 10px;
     display: flex; justify-content: space-between; align-items: center;
@@ -70,7 +69,6 @@ header {
 .avatar-display { font-size: 1.2rem; line-height: 1rem; }
 .room-badge { border: 1px solid var(--system-color); padding: 2px 8px; font-weight: bold; color: var(--system-color); }
 
-/* --- MAIN GRID --- */
 main { display: grid; grid-template-columns: 200px 1fr; overflow: hidden; }
 
 .sidebar {
@@ -90,7 +88,6 @@ main { display: grid; grid-template-columns: 200px 1fr; overflow: hidden; }
     scroll-behavior: smooth; word-wrap: break-word;
 }
 
-/* --- FOOTER --- */
 footer {
     border-top: 1px solid var(--term-color); padding: 10px;
     display: flex; align-items: center; gap: 10px;
@@ -100,7 +97,7 @@ footer {
 .prompt { font-weight: bold; animation: blink 1s step-end infinite; white-space: nowrap; }
 @keyframes blink { 50% { opacity: 0; } }
 
-input[type="text"] {
+input[type="text"], input[type="password"] {
     background: transparent; border: none; color: var(--term-color);
     font-family: var(--font-stack); font-size: 1.1rem; flex-grow: 1; text-transform: uppercase;
 }
@@ -113,7 +110,6 @@ input[type="text"] {
 .btn-icon.active { background: var(--term-color); color: #000; animation: pulse 1.5s infinite; }
 @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.5; } 100% { opacity: 1; } }
 
-/* --- TEXT STYLES --- */
 .system-msg { color: var(--system-color); opacity: 0.8; }
 .user-msg { color: var(--user-color); font-weight: bold; }
 .other-msg { color: var(--term-color); }
@@ -121,7 +117,6 @@ input[type="text"] {
 .error-msg { color: var(--danger-color); font-weight: bold; }
 .cmd-msg { color: #ff00ff; }
 
-/* --- MODALS --- */
 .modal {
     position: fixed; top: 0; left: 0; width: 100%; height: 100%;
     background: rgba(0,0,0,0.9); z-index: 1000;
@@ -133,18 +128,16 @@ input[type="text"] {
     padding: 20px; width: 90%; max-width: 500px;
     box-shadow: 0 0 30px var(--term-glow);
 }
-.modal h2 { border-bottom: 1px solid var(--term-dim); margin-bottom: 15px; color: var(--system-color); }
+.modal h2 { border-bottom: 1px solid #333; margin-bottom: 15px; color: var(--system-color); }
 .form-group { margin-bottom: 15px; }
-.form-group label { display: block; margin-bottom: 5px; font-size: 0.8rem; }
+.form-group label { display: block; margin-bottom: 5px; font-size: 0.8rem; color: #aaa; }
 .form-group input { width: 100%; background: #000; border: 1px solid var(--term-color); color: var(--term-color); padding: 8px; font-family: var(--font-stack); }
 .modal-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px; }
 
-/* --- GAME CANVAS --- */
 .game-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin: 20px 0; }
 .game-btn { height: 60px; background: #000; border: 1px solid var(--term-color); color: var(--term-color); font-size: 1.5rem; cursor: pointer; }
 .game-btn.hacked { background: var(--term-dim); color: #fff; }
 
-/* --- RESPONSIVE --- */
 @media (max-width: 700px) {
     #os-container { margin: 0; height: 100vh; border: none; }
     main { grid-template-columns: 1fr; }
@@ -169,7 +162,7 @@ input[type="text"] {
         </div>
         <div class="room-badge" id="current-room">LOUNGE</div>
         <div class="header-right">
-            <button class="btn-icon" onclick="ui.openSettings()">⚙️</button>
+            <button class="btn-icon" onclick="ui.openSettings()">⚙️ KEYS</button>
             <span id="net-status">OFFLINE</span>
         </div>
     </header>
@@ -187,11 +180,12 @@ input[type="text"] {
         </div>
         <div id="terminal-output">
             <div id="intro">
-                <p>BOOTING TermOS LT v3.0 [HYBRID]...</p>
-                <p>LOADING NEURAL LINKS...</p>
+                <p>BOOTING TermOS LT v3.1 [API FIXED]...</p>
+                <p>SYSTEM INITIALIZED.</p>
                 <p>&nbsp;</p>
-                <p>WELCOME BACK, COMMANDER.</p>
-                <p>TYPE /HELP FOR COMMANDS OR CONFIGURE KEYS IN SETTINGS.</p>
+                <p style="color:#ffff00">IMPORTANT: API KEYS REQUIRED.</p>
+                <p>CLICK ⚙️ (SETTINGS) TO ENTER YOUR KEYS.</p>
+                <p>SUPPORTED: GROQ (FAST), ZHIPU (GLM-4), OPENAI.</p>
             </div>
         </div>
     </main>
@@ -204,20 +198,16 @@ input[type="text"] {
     </footer>
 </div>
 
-<!-- --- MODALS --- -->
-
-<!-- Settings Modal -->
+<!-- SETTINGS MODAL -->
 <div id="settingsModal" class="modal">
     <div class="modal-content">
-        <h2>SYSTEM CONFIG</h2>
-        <p style="font-size:0.8rem; color:var(--system-color)">Enter keys to enable different AI Engines.</p>
+        <h2>API CONFIGURATION</h2>
+        <p style="font-size:0.75rem; color:#888; margin-bottom:15px;">
+            Enter keys to enable AI. Keys are saved locally in your browser.
+        </p>
         
         <div class="form-group">
-            <label>OpenAI Key (GPT-3.5/4)</label>
-            <input type="password" id="key-openai" placeholder="sk-...">
-        </div>
-        <div class="form-group">
-            <label>Groq Key (Fast Llama 3)</label>
+            <label>Groq Key (Fastest - Recommended)</label>
             <input type="password" id="key-groq" placeholder="gsk_...">
         </div>
         <div class="form-group">
@@ -225,18 +215,23 @@ input[type="text"] {
             <input type="password" id="key-zhipu" placeholder="...">
         </div>
         <div class="form-group">
-            <label>CORS Proxy (Fixes OpenAI Network Error)</label>
+            <label>OpenAI Key (GPT-3.5/4)</label>
+            <input type="password" id="key-openai" placeholder="sk-...">
+        </div>
+        <div class="form-group">
+            <label>CORS Proxy (For OpenAI only)</label>
             <input type="text" id="cfg-proxy" value="https://corsproxy.io/?">
+            <p style="font-size:0.7rem; color:#666">Required for OpenAI in browser. Leave default.</p>
         </div>
         
         <div class="modal-actions">
-            <button class="btn-icon" onclick="ui.closeModal('settingsModal')">CLOSE</button>
-            <button class="btn-icon" style="background:var(--term-color); color:black" onclick="actions.saveSettings()">SAVE</button>
+            <button class="btn-icon" onclick="ui.closeModal('settingsModal')">CANCEL</button>
+            <button class="btn-icon" style="background:var(--term-color); color:black" onclick="actions.saveSettings()">SAVE KEYS</button>
         </div>
     </div>
 </div>
 
-<!-- Game Modal -->
+<!-- GAME MODAL -->
 <div id="gameModal" class="modal">
     <div class="modal-content" style="border-color:var(--xp-color)">
         <h2>HACKING CONSOLE</h2>
@@ -251,7 +246,7 @@ input[type="text"] {
     </div>
 </div>
 
-<!-- Music Modal -->
+<!-- MUSIC MODAL -->
 <div id="musicModal" class="modal">
     <div class="modal-content" style="border-color:var(--system-color)">
         <h2>AUDIO INTERFACE</h2>
@@ -370,7 +365,7 @@ const actions = {
         State.keys.proxy = document.getElementById('cfg-proxy').value.trim();
         localStorage.setItem('termos_keys_v3', JSON.stringify(State.keys));
         ui.closeModal('settingsModal');
-        ui.log("CONFIGURATION SAVED.", "system-msg");
+        ui.log("CONFIGURATION SAVED. KEYS ACTIVE.", "system-msg");
     },
     addXP: (amt) => {
         State.user.xp += amt;
@@ -449,7 +444,6 @@ const actions = {
         if (!t) return;
         playSound('type');
 
-        // Slash Commands
         if (t.startsWith('/')) {
             const parts = t.split(' ');
             const cmd = parts[0].toLowerCase();
@@ -463,18 +457,15 @@ const actions = {
             return;
         }
 
-        // Chat Output
         ui.msg(State.user.nick, text, "user-msg");
         actions.addXP(1);
 
-        // MQTT Send
         if (State.isConnected) {
             const msg = new Paho.MQTT.Message(JSON.stringify({ nick: State.user.nick, text: text }));
             msg.destinationName = `${Config.mqtt.baseTopic}/${State.user.room}`;
             State.client.send(msg);
         }
 
-        // AI Trigger (Keyword)
         if (t.includes("AI") || t.includes("HELP") || t.includes("PLAY") || t.includes("START")) {
             ai.query(text);
         }
@@ -529,81 +520,98 @@ const ai = {
     query: async (prompt) => {
         ui.log("TERMAI THINKING...", "system-msg");
         
-        const tools = [
-            { type: "function", function: { 
-                name: "play_music", description: "Play music via the system audio player" 
-            }},
-            { type: "function", function: { 
-                name: "start_game", description: "Launch the hacking mini-game" 
-            }},
-            { type: "function", function: { 
-                name: "switch_room", description: "Change the multiverse room", 
-                parameters: { type: "object", properties: { room: { type: "string" } } } 
-            }}
-        ];
-
         let responseText = "";
-        let toolCalls = null;
+        
+        // Helper to handle fetch errors specifically
+        const tryFetch = async (url, headers, body, providerName) => {
+            try {
+                console.log(`Attempting connection to ${providerName}...`);
+                const res = await fetch(url, {
+                    method: "POST", 
+                    headers: headers, 
+                    body: JSON.stringify(body)
+                });
+                
+                if (!res.ok) {
+                    const errText = await res.text();
+                    console.error(`${providerName} Error:`, res.status, errText);
+                    throw new Error(`${providerName} returned ${res.status}`);
+                }
+                
+                const data = await res.json();
+                return data.choices[0].message;
+            } catch (e) {
+                console.error(e);
+                throw e; // Re-throw to trigger next provider
+            }
+        };
 
-        // 1. Try Groq
+        // 1. Try GROQ (Priority 1)
         if (State.keys.groq && !responseText) {
             try {
-                const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
-                    method: "POST", 
-                    headers: { "Authorization": `Bearer ${State.keys.groq}`, "Content-Type": "application/json" },
-                    body: JSON.stringify({
+                const msg = await tryFetch(
+                    "https://api.groq.com/openai/v1/chat/completions",
+                    { "Authorization": `Bearer ${State.keys.groq}`, "Content-Type": "application/json" },
+                    {
                         model: "llama3-70b-8192",
                         messages: [{role: "system", content: Config.rooms[State.user.room].persona}, {role: "user", content: prompt}],
-                        tools: tools, tool_choice: "auto"
-                    })
-                });
-                const d = await res.json();
-                const m = d.choices[0].message;
-                responseText = m.content;
-                toolCalls = m.tool_calls;
-            } catch(e) { console.log("Groq Fail", e); }
+                        tools: [
+                            { type: "function", function: { name: "play_music", description: "Play music" }},
+                            { type: "function", function: { name: "start_game", description: "Launch game" }},
+                            { type: "function", function: { name: "switch_room", description: "Change room", parameters: { type: "object", properties: { room: { type: "string" } } } }}
+                        ],
+                        tool_choice: "auto"
+                    },
+                    "GROQ"
+                );
+                responseText = msg.content;
+                if(msg.tool_calls) handleTools(msg.tool_calls);
+            } catch(e) { ui.log("GROQ FAILED. TRYING NEXT...", "error-msg"); }
         }
 
-        // 2. Try Zhipu
-        if (State.keys.zhipu && !responseText && !toolCalls) {
+        // 2. Try ZHIPU (Priority 2)
+        if (State.keys.zhipu && !responseText) {
             try {
-                const res = await fetch("https://open.bigmodel.cn/api/paas/v4/chat/completions", {
-                    method: "POST", 
-                    headers: { "Authorization": `Bearer ${State.keys.zhipu}`, "Content-Type": "application/json" },
-                    body: JSON.stringify({
+                const msg = await tryFetch(
+                    "https://open.bigmodel.cn/api/paas/v4/chat/completions",
+                    { "Authorization": `Bearer ${State.keys.zhipu}`, "Content-Type": "application/json" },
+                    {
                         model: "glm-4",
                         messages: [{role: "system", content: Config.rooms[State.user.room].persona}, {role: "user", content: prompt}]
-                    })
-                });
-                const d = await res.json();
-                responseText = d.choices[0].message.content;
-            } catch(e) { console.log("Zhipu Fail", e); }
+                    },
+                    "ZHIPU"
+                );
+                responseText = msg.content;
+            } catch(e) { ui.log("ZHIPU FAILED. TRYING NEXT...", "error-msg"); }
         }
 
-        // 3. Try OpenAI (With Proxy)
-        if (State.keys.openai && !responseText && !toolCalls) {
+        // 3. Try OPENAI (Priority 3 - Requires Proxy)
+        if (State.keys.openai && !responseText) {
             try {
                 const target = "https://api.openai.com/v1/chat/completions";
                 const url = State.keys.proxy ? State.keys.proxy + encodeURIComponent(target) : target;
                 
-                const res = await fetch(url, {
-                    method: "POST", 
-                    headers: { "Authorization": `Bearer ${State.keys.openai}`, "Content-Type": "application/json" },
-                    body: JSON.stringify({
+                const msg = await tryFetch(
+                    url,
+                    { "Authorization": `Bearer ${State.keys.openai}`, "Content-Type": "application/json" },
+                    {
                         model: "gpt-3.5-turbo",
                         messages: [{role: "system", content: Config.rooms[State.user.room].persona}, {role: "user", content: prompt}],
-                        tools: tools, tool_choice: "auto"
-                    })
-                });
-                const d = await res.json();
-                const m = d.choices[0].message;
-                responseText = m.content;
-                toolCalls = m.tool_calls;
-            } catch(e) { console.log("OpenAI Fail", e); }
+                        tools: [
+                            { type: "function", function: { name: "play_music", description: "Play music" }},
+                            { type: "function", function: { name: "start_game", description: "Launch game" }},
+                            { type: "function", function: { name: "switch_room", description: "Change room", parameters: { type: "object", properties: { room: { type: "string" } } } }}
+                        ],
+                        tool_choice: "auto"
+                    },
+                    "OPENAI"
+                );
+                responseText = msg.content;
+                if(msg.tool_calls) handleTools(msg.tool_calls);
+            } catch(e) { ui.log("OPENAI FAILED.", "error-msg"); }
         }
 
-        // Handle Tool Calls (Agentic Actions)
-        if (toolCalls) {
+        function handleTools(toolCalls) {
             for (const tool of toolCalls) {
                 if (tool.function.name === "play_music") actions.triggerModal('musicModal');
                 if (tool.function.name === "start_game") actions.triggerModal('gameModal');
@@ -614,23 +622,4 @@ const ai = {
             }
         }
 
-        const finalText = responseText || "NEURAL PATHWAYS CONGESTED (API ERROR).";
-        ui.log("TERMAI: " + finalText, "ai-msg");
-        
-        if (State.synthesis.speaking) State.synthesis.cancel();
-        const u = new SpeechSynthesisUtterance(finalText);
-        State.synthesis.speak(u);
-        
-        actions.addXP(5);
-    }
-};
-
-/* --- BOOT --- */
-document.getElementById('command-input').addEventListener('keydown', e => { if(e.key === 'Enter') actions.send(); });
-window.onload = () => {
-    ui.updateStats();
-    connectMQTT();
-    ui.log("TERMOS LT v3.0 INITIALIZED. TYPE /HELP", "system-msg");
-};
-
-</script>
+        const finalText = response
