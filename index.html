@@ -1,315 +1,678 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    
-    <!-- FIX 1: CRITICAL for Multi-Device Loading -->
-    <!-- viewport-fit=cover ensures the app uses the full screen on iPhones (notch) -->
-    <!-- user-scalable=no prevents the app from breaking layout on accidental zoom -->
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    
-    <title>Multi-Device App</title>
-    
-    <!-- Icons -->
-    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>TERMCHAT LT // AI INTEGRATED</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/paho-mqtt/1.0.1/mqttws31.min.js"></script>
+<style>
+/* --- STYLES --- */
+:root {
+    --main-bg: #050505;
+    --term-color: #33ff00;
+    --term-glow: 0 0 10px rgba(51, 255, 0, 0.5);
+    --danger-color: #ff3333;
+    --system-color: #ffff00;
+    --user-color: #ffffff;
+    --crt-scanline: rgba(18, 16, 16, 0.5);
+    --font-stack: 'Courier New', Courier, monospace;
+}
 
-    <style>
-        /* --- CSS RESET & VARIABLES --- */
-        :root {
-            --ios-bg: #F2F2F7;
-            --ios-card: #FFFFFF;
-            --ios-text: #000000;
-            --ios-blue: #007AFF;
-            --safe-top: env(safe-area-inset-top, 20px);
-            --safe-bottom: env(safe-area-inset-bottom, 20px);
-        }
+* { box-sizing: border-box; margin: 0; padding: 0; outline: none; }
 
-        /* Dark Mode Support */
-        @media (prefers-color-scheme: dark) {
-            :root {
-                --ios-bg: #000000;
-                --ios-card: #1C1C1E;
-                --ios-text: #FFFFFF;
-            }
-        }
+body {
+    background-color: #000;
+    color: var(--term-color);
+    font-family: var(--font-stack);
+    height: 100vh; 
+    display: flex; 
+    justify-content: center; 
+    align-items: center;
+    overflow: hidden;
+    transition: background-color 0.5s ease;
+}
 
-        * {
-            box-sizing: border-box; /* FIX 2: Prevents elements from overflowing width */
-            -webkit-tap-highlight-color: transparent; /* Removes grey tap box on mobile */
-        }
+#crt-container {
+    width: 100%; 
+    max-width: 900px; 
+    height: 90vh;
+    background-color: var(--main-bg); 
+    border: 2px solid var(--term-color);
+    padding: 20px; 
+    display: flex; 
+    flex-direction: column;
+    position: relative; 
+    box-shadow: var(--term-glow);
+    transition: all 0.3s ease;
+    margin: 20px;
+}
 
-        body {
-            margin: 0;
-            padding: 0;
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-            background-color: #333; /* Dark background for desktop view */
-            color: var(--ios-text);
-            height: 100vh;
-            width: 100vw;
-            overflow: hidden; /* Prevents body scroll, handles it inside the app */
-            display: flex;
-            justify-content: center;
-            align-items: center;
-        }
+/* Scanlines */
+#crt-container::before {
+    content: " "; display: block; position: absolute;
+    top: 0; left: 0; bottom: 0; right: 0;
+    background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.06), rgba(0, 255, 0, 0.02), rgba(0, 0, 255, 0.06));
+    z-index: 2; background-size: 100% 2px, 3px 100%; pointer-events: none;
+}
 
-        /* --- APP CONTAINER --- */
-        /* This is the "Phone" screen. On mobile it fills 100%, on desktop it limits width. */
-        #app-root {
-            width: 100%;
-            height: 100%;
-            background-color: var(--ios-bg);
-            position: relative;
-            overflow-y: auto; /* Scroll happens here */
-            overflow-x: hidden; /* FIX 2b: No horizontal scrolling */
-            display: flex;
-            flex-direction: column;
-            
-            /* Smooth scrolling */
-            -webkit-overflow-scrolling: touch;
-        }
+/* Flicker */
+@keyframes flicker {
+    0% { opacity: 0.97; }
+    5% { opacity: 0.95; }
+    10% { opacity: 0.9; }
+    15% { opacity: 0.95; }
+    20% { opacity: 0.99; }
+    50% { opacity: 0.95; }
+    80% { opacity: 0.9; }
+    100% { opacity: 0.97; }
+}
+#crt-container::after {
+    content: " "; display: block; position: absolute;
+    top: 0; left: 0; bottom: 0; right: 0;
+    background: rgba(18, 16, 16, 0.1);
+    opacity: 0;
+    z-index: 2;
+    pointer-events: none;
+    animation: flicker 0.15s infinite;
+}
 
-        /* Desktop Constraint: If screen is wider than 500px, limit app width */
-        @media (min-width: 500px) {
-            #app-root {
-                width: 100%;
-                max-width: 414px; /* Max width of large iPhone */
-                height: 90vh;
-                border-radius: 30px;
-                box-shadow: 0 20px 40px rgba(0,0,0,0.5);
-                border: 8px solid #1c1c1e;
-            }
-        }
+.header {
+    border-bottom: 1px solid var(--term-color); 
+    padding-bottom: 10px; 
+    margin-bottom: 10px;
+    display: flex; 
+    justify-content: space-between; 
+    text-transform: uppercase; 
+    font-weight: bold; 
+    z-index: 3;
+    text-shadow: var(--term-glow);
+}
 
-        /* --- HEADER (Glassmorphism) --- */
-        header {
-            position: sticky;
-            top: 0;
-            z-index: 100;
-            background: rgba(255, 255, 255, 0.8);
-            backdrop-filter: blur(12px);
-            -webkit-backdrop-filter: blur(12px);
-            border-bottom: 1px solid rgba(0,0,0,0.1);
-            padding: calc(var(--safe-top) + 15px) 20px 15px 20px;
-        }
+.status-indicator {
+    display: inline-block;
+    width: 10px; height: 10px;
+    background-color: #555;
+    border-radius: 50%;
+    margin-right: 5px;
+    box-shadow: 0 0 5px currentColor;
+}
+.status-online { background-color: var(--term-color); color: var(--term-color); }
+.status-offline { background-color: var(--danger-color); color: var(--danger-color); }
+.status-thinking { background-color: var(--system-color); color: var(--system-color); }
 
-        @media (prefers-color-scheme: dark) {
-            header {
-                background: rgba(28, 28, 30, 0.8);
-                border-bottom: 1px solid rgba(255,255,255,0.1);
-            }
-        }
+#output { 
+    flex-grow: 1; 
+    overflow-y: auto; 
+    margin-bottom: 10px; 
+    white-space: pre-wrap; 
+    z-index: 3; 
+    font-size: 1.1rem; 
+    padding-right: 5px; 
+    scroll-behavior: smooth;
+    word-wrap: break-word;
+}
 
-        h1 {
-            margin: 0;
-            font-size: 34px;
-            font-weight: 700;
-            letter-spacing: -0.5px;
-        }
+/* Custom Scrollbar */
+#output::-webkit-scrollbar { width: 8px; }
+#output::-webkit-scrollbar-track { background: #000; }
+#output::-webkit-scrollbar-thumb { background: var(--term-color); border: 1px solid #000; }
 
-        /* --- CONTENT LAYOUT --- */
-        main {
-            padding: 20px;
-            padding-bottom: calc(var(--safe-bottom) + 80px); /* Space for bottom nav */
-            flex: 1;
-        }
+.input-line { 
+    display: flex; 
+    align-items: center; 
+    border-top: 1px solid var(--term-color); 
+    padding-top: 10px; 
+    z-index: 3; 
+}
 
-        /* iOS List Group Style */
-        .list-group {
-            background: var(--ios-card);
-            border-radius: 12px;
-            overflow: hidden;
-            margin-bottom: 25px;
-        }
+.prompt { 
+    margin-right: 10px; 
+    font-weight: bold; 
+    animation: blink 1s step-end infinite; 
+    white-space: nowrap;
+}
 
-        .list-item {
-            display: flex;
-            align-items: center;
-            padding: 12px 16px;
-            background: var(--ios-card);
-            border-bottom: 1px solid rgba(0,0,0,0.05); /* Subtle separator */
-            cursor: pointer;
-            transition: background 0.2s;
-        }
-        
-        @media (prefers-color-scheme: dark) {
-            .list-item { border-bottom: 1px solid rgba(255,255,255,0.1); }
-        }
+input[type="text"] {
+    background: transparent; 
+    border: none; 
+    color: var(--term-color);
+    font-family: var(--font-stack); 
+    font-size: 1.1rem; 
+    flex-grow: 1; 
+    text-shadow: 0 0 2px var(--term-color);
+    text-transform: uppercase;
+    width: 100%;
+}
 
-        .list-item:last-child {
-            border-bottom: none;
-        }
+.system-msg { color: var(--system-color); font-style: italic; opacity: 0.8; }
+.user-msg { color: var(--user-color); font-weight: bold; }
+.other-msg { color: var(--term-color); }
+.ai-msg { color: #00ffff; text-shadow: 0 0 5px #00ffff; }
+.error-msg { color: var(--danger-color); font-weight: bold; }
+.new-cmd-msg { color: #ff00ff; font-weight: bold; } /* Color for AI created commands */
 
-        .list-item:active {
-            background-color: rgba(0,0,0,0.05);
-        }
-        @media (prefers-color-scheme: dark) {
-            .list-item:active { background-color: rgba(255,255,255,0.05); }
-        }
+.hidden { display: none !important; }
 
-        .icon-box {
-            width: 32px;
-            height: 32px;
-            border-radius: 8px;
-            background: #F2F2F7;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            margin-right: 15px;
-            font-size: 18px;
-            color: var(--ios-blue);
-        }
+@keyframes blink { 0% { opacity: 1; } 50% { opacity: 0; } 100% { opacity: 1; } }
 
-        .item-text {
-            flex: 1;
-            font-size: 17px;
-        }
-
-        /* --- BOTTOM NAV --- */
-        nav.bottom-nav {
-            position: absolute;
-            bottom: 0;
-            width: 100%;
-            background: rgba(255, 255, 255, 0.9);
-            backdrop-filter: blur(20px);
-            -webkit-backdrop-filter: blur(20px);
-            border-top: 1px solid rgba(0,0,0,0.15);
-            display: flex;
-            justify-content: space-around;
-            padding: 10px 0 calc(10px + var(--safe-bottom)) 0;
-            z-index: 100;
-        }
-
-        @media (prefers-color-scheme: dark) {
-            nav.bottom-nav {
-                background: rgba(28, 28, 30, 0.9);
-                border-top: 1px solid rgba(255,255,255,0.1);
-            }
-        }
-
-        .nav-item {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            font-size: 10px;
-            color: #999;
-            cursor: pointer;
-            gap: 4px;
-        }
-
-        .nav-item.active {
-            color: var(--ios-blue);
-        }
-
-        .nav-item i {
-            font-size: 24px;
-        }
-
-        /* Loading Animation (Fixes visual "blank load") */
-        .loader {
-            border: 4px solid #f3f3f3;
-            border-top: 4px solid var(--ios-blue);
-            border-radius: 50%;
-            width: 40px;
-            height: 40px;
-            animation: spin 1s linear infinite;
-            margin: 50px auto;
-        }
-
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
-    </style>
+@media (max-width: 600px) {
+    #crt-container { height: 100vh; border: none; padding: 10px; margin: 0; }
+    .header { font-size: 0.8rem; }
+}
+</style>
 </head>
 <body>
 
-    <div id="app-root">
-        <header>
-            <h1>Dashboard</h1>
-        </header>
-
-        <main id="main-content">
-            <!-- JS will inject content here, but we provide fallback -->
-            <div class="loader" id="loader"></div>
-            
-            <!-- Example Content (Visible after JS Load) -->
-            <div id="content-area" style="display: none;">
-                <div style="margin-bottom: 20px;">
-                    <h3 style="margin: 0 0 5px 0;">Welcome Back</h3>
-                    <p style="margin: 0; color: var(--text-secondary); font-size: 15px;">Your system is optimized.</p>
-                </div>
-
-                <div class="list-group">
-                    <div class="list-item">
-                        <div class="icon-box"><i class="ph ph-wallet"></i></div>
-                        <div class="item-text">Account Balance</div>
-                        <i class="ph ph-caret-right" style="color: #ccc;"></i>
-                    </div>
-                    <div class="list-item">
-                        <div class="icon-box"><i class="ph ph-gear"></i></div>
-                        <div class="item-text">Settings</div>
-                        <i class="ph ph-caret-right" style="color: #ccc;"></i>
-                    </div>
-                    <div class="list-item">
-                        <div class="icon-box" style="color: var(--danger-color); background: rgba(255,59,48,0.1);"><i class="ph ph-sign-out"></i></div>
-                        <div class="item-text" style="color: var(--danger-color);">Log Out</div>
-                    </div>
-                </div>
-            </div>
-        </main>
-
-        <nav class="bottom-nav">
-            <div class="nav-item active" onclick="switchTab(this)">
-                <i class="ph ph-house-fill"></i>
-                <span>Home</span>
-            </div>
-            <div class="nav-item" onclick="switchTab(this)">
-                <i class="ph ph-chart-bar"></i>
-                <span>Stats</span>
-            </div>
-            <div class="nav-item" onclick="switchTab(this)">
-                <i class="ph ph-user"></i>
-                <span>Profile</span>
-            </div>
-        </nav>
+<div id="crt-container">
+    <div class="header">
+        <div id="status-wrapper">
+            <span id="status-light" class="status-indicator"></span>
+            <span id="status-text">OFFLINE</span>
+        </div>
+        <span>## TERMOS LT // AI_CORE</span>
     </div>
 
-    <script>
-        // Simple script to simulate app load
-        document.addEventListener('DOMContentLoaded', () => {
-            const loader = document.getElementById('loader');
-            const content = document.getElementById('content-area');
+    <div id="output">
+        <div id="intro-screen">
+            <p>INITIALIZING KERNEL...</p>
+            <p>LOADING Z.AI MODULES... [OK]</p>
+            <p>MOUNTING FILESYSTEM... [OK]</p>
+            <p>&nbsp;</p>
+            <p>AI INTEGRATION ACTIVE.</p>
+            <p>PRESS [ENTER] TO INITIALIZE UPLINK.</p>
+        </div>
+        <div id="chat-room" class="hidden"></div>
+    </div>
 
-            // Simulate a 500ms network load
-            setTimeout(() => {
-                loader.style.display = 'none';
-                content.style.display = 'block';
-            }, 500);
+    <div class="input-line">
+        <span class="prompt">></span>
+        <input type="text" id="command-input" autocomplete="off" autofocus placeholder="AWAITING INPUT...">
+    </div>
+</div>
+
+<script>
+/* --- CONFIGURATION --- */
+const MQTT_HOST = "broker.hivemq.com";
+const MQTT_PORT = 8884; 
+const MQTT_TOPIC = "termchat/lt/ai";
+const ZAI_API_KEY = "42b0a4fbe60e4568ba1b74d5e8d030d6.xSVMYljtqVXmRr33";
+
+// If Z.ai has a specific endpoint, put it here. 
+// Since I cannot verify the exact URL without docs, I default to a standard structure.
+// If this fails, the app uses the Local Fallback Engine.
+const ZAI_API_URL = "https://api.z.ai/v1/chat/completions"; 
+
+/* --- STATE --- */
+let client;
+let isConnected = false;
+let nickname = "Anon" + Math.floor(Math.random() * 9999);
+let inputMode = "INTRO";
+let audioContextInitialized = false;
+
+// Dynamic Command Registry (Allows AI to create new commands)
+const dynamicCommands = {};
+
+/* --- DOM ELEMENTS --- */
+const outputDiv = document.getElementById('output');
+const inputField = document.getElementById('command-input');
+const statusText = document.getElementById('status-text');
+const statusLight = document.getElementById('status-light');
+const introScreen = document.getElementById('intro-screen');
+const chatRoom = document.getElementById('chat-room');
+
+/* --- AUDIO ENGINE --- */
+const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+
+function initAudio() {
+    if (!audioContextInitialized) {
+        if (audioCtx.state === 'suspended') {
+            audioCtx.resume().then(() => {
+                audioContextInitialized = true;
+            }).catch(e => console.error("Audio resume failed:", e));
+        } else {
+            audioContextInitialized = true;
+        }
+    }
+}
+
+function playSound(type = 'type') {
+    if (!audioContextInitialized) return;
+    try {
+        const osc = audioCtx.createOscillator();
+        const gainNode = audioCtx.createGain();
+        osc.connect(gainNode);
+        gainNode.connect(audioCtx.destination);
+
+        if (type === 'type') {
+            osc.type = 'square';
+            osc.frequency.setValueAtTime(800, audioCtx.currentTime);
+            gainNode.gain.setValueAtTime(0.05, audioCtx.currentTime);
+            osc.start();
+            osc.stop(audioCtx.currentTime + 0.05);
+        } else if (type === 'alert') {
+            osc.type = 'sawtooth';
+            osc.frequency.setValueAtTime(150, audioCtx.currentTime);
+            osc.frequency.exponentialRampToValueAtTime(40, audioCtx.currentTime + 0.3);
+            gainNode.gain.setValueAtTime(0.1, audioCtx.currentTime);
+            osc.start();
+            osc.stop(audioCtx.currentTime + 0.3);
+        } else if (type === 'success') {
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(440, audioCtx.currentTime);
+            osc.frequency.setValueAtTime(880, audioCtx.currentTime + 0.1);
+            gainNode.gain.setValueAtTime(0.1, audioCtx.currentTime);
+            osc.start();
+            osc.stop(audioCtx.currentTime + 0.2);
+        }
+    } catch (e) {}
+}
+
+/* --- INITIALIZATION --- */
+document.addEventListener('DOMContentLoaded', () => {
+    inputField.focus();
+});
+
+document.addEventListener('click', () => {
+    initAudio();
+    if (window.getSelection().toString() === '') {
+        inputField.focus();
+    }
+});
+
+inputField.addEventListener('keydown', (e) => {
+    initAudio(); 
+    playSound('type');
+    
+    if (e.key === 'Enter') {
+        const text = inputField.value.trim();
+        inputField.value = '';
+        
+        if (inputMode === 'INTRO') {
+            handleIntro();
+        } else if (inputMode === 'CHAT') {
+            handleChatCommand(text);
+        }
+    }
+});
+
+/* --- LOGIC HANDLERS --- */
+
+function handleIntro() {
+    introScreen.classList.add('hidden');
+    chatRoom.classList.remove('hidden');
+    inputMode = 'CHAT';
+    logToTerminal("INITIALIZING UPLINK...", "system");
+    setTimeout(() => connectMQTT(), 800);
+}
+
+function connectMQTT() {
+    const clientId = "termchat-client-" + Date.now() + "-" + Math.floor(Math.random() * 10000);
+    try {
+        client = new Paho.MQTT.Client(MQTT_HOST, MQTT_PORT, clientId);
+    } catch (e) {
+        logToTerminal("CRITICAL: MQTT INIT FAILED " + e.message, "error-msg");
+        return;
+    }
+
+    client.onConnectionLost = onConnectionLost;
+    client.onMessageArrived = onMessageArrived;
+
+    const options = { 
+        timeout: 10, 
+        useSSL: true, 
+        mqttVersion: 4,      
+        cleanSession: true,   
+        onSuccess: onConnect, 
+        onFailure: onFailure,
+        keepAliveInterval: 30
+    };
+    
+    logToTerminal(`CONNECTING TO SECURE CHANNEL...`, "system");
+    try {
+        client.connect(options);
+    } catch (e) {
+        logToTerminal("CONNECTION THROW ERROR: " + e.message, "error-msg");
+    }
+}
+
+function handleChatCommand(text) {
+    if (!text) return;
+    
+    // AI Command
+    if (text.startsWith('/ai ')) {
+        const instruction = text.substring(4).trim();
+        if(!instruction) {
+            logToTerminal("AI ERROR: NO INSTRUCTION", "error-msg");
+            return;
+        }
+        processAIRequest(instruction);
+        return;
+    }
+
+    // Standard Commands
+    if (text.startsWith('/')) {
+        processCommand(text);
+        return;
+    }
+
+    // Chat Message
+    if (!isConnected) {
+        logToTerminal("CANNOT TRANSMIT: OFFLINE", "error-msg");
+        return;
+    }
+
+    const messageData = { nick: nickname, text: text, timestamp: new Date().toLocaleTimeString() };
+    try {
+        const message = new Paho.MQTT.Message(JSON.stringify(messageData));
+        message.destinationName = MQTT_TOPIC;
+        client.send(message);
+        renderMessage(nickname, text, 'user-msg');
+    } catch (err) {
+        logToTerminal("TRANSMISSION ERROR: " + err.message, "error-msg");
+    }
+}
+
+/* --- DYNAMIC COMMAND REGISTRY --- */
+// Allows AI to create commands like '/hello'
+function registerDynamicCommand(cmdName, responseText) {
+    const normalizedCmd = cmdName.startsWith('/') ? cmdName : '/' + cmdName;
+    dynamicCommands[normalizedCmd.toLowerCase()] = {
+        type: 'text',
+        response: responseText
+    };
+    logToTerminal(`INSTALLED DYNAMIC COMMAND: ${normalizedCmd}`, "new-cmd-msg");
+}
+
+function registerDynamicAction(cmdName, actionType, value) {
+    const normalizedCmd = cmdName.startsWith('/') ? cmdName : '/' + cmdName;
+    dynamicCommands[normalizedCmd.toLowerCase()] = {
+        type: 'action',
+        action: actionType,
+        value: value
+    };
+    logToTerminal(`INSTALLED ACTION COMMAND: ${normalizedCmd}`, "new-cmd-msg");
+}
+
+function executeDynamicCommand(cmdName) {
+    const normalizedCmd = cmdName.toLowerCase();
+    if (dynamicCommands[normalizedCmd]) {
+        const cmd = dynamicCommands[normalizedCmd];
+        if (cmd.type === 'text') {
+            logToTerminal(cmd.response, "ai-msg");
+        } else if (cmd.type === 'action') {
+            // Execute the pre-validated action
+            executeAIAction({ type: cmd.action, value: cmd.value });
+        }
+    }
+}
+
+/* --- AI ENGINE (CORE) --- */
+
+async function processAIRequest(instruction) {
+    logToTerminal(`AI: PROCESSING "${instruction}"...`, "ai-msg");
+    setAIStatus(true);
+
+    // 1. Try Real API Call
+    try {
+        const response = await fetch(ZAI_API_URL, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${ZAI_API_KEY}`
+            },
+            body: JSON.stringify({
+                model: "zai-1", // Assuming a model name
+                messages: [
+                    { role: "system", content: "You are a terminal controller. Return ONLY valid JSON with an 'actions' array. Allowed actions: {'type': 'style', 'var': '--term-color', 'value': 'blue'}, {'type': 'style', 'var': '--main-bg', 'value': 'black'}, {'type': 'mqtt', 'text': 'Hello World'}, {'type': 'register', 'cmd': '/hello', 'text': 'Greetings'}." },
+                    { role: "user", content: instruction }
+                ]
+            })
         });
 
-        // Tab Switching Logic
-        function switchTab(element) {
-            // Remove active class from all
-            document.querySelectorAll('.nav-item').forEach(el => {
-                el.classList.remove('active');
-                // Reset icons to outline
-                const icon = el.querySelector('i');
-                if(icon.classList.contains('ph-house-fill')) icon.className = 'ph ph-house';
-                if(icon.classList.contains('ph-chart-bar-fill')) icon.className = 'ph ph-chart-bar';
-                if(icon.classList.contains('ph-user-fill')) icon.className = 'ph ph-user';
-            });
-
-            // Add active to clicked
-            element.classList.add('active');
-            
-            // Switch icons to fill
-            const icon = element.querySelector('i');
-            if(icon.classList.contains('ph-house')) icon.className = 'ph ph-house-fill';
-            if(icon.classList.contains('ph-chart-bar')) icon.className = 'ph ph-chart-bar-fill';
-            if(icon.classList.contains('ph-user')) icon.className = 'ph ph-user-fill';
-
-            // In a real app, you would load different content here
+        if (!response.ok) throw new Error("API Status " + response.status);
+        const data = await response.json();
+        const content = data.choices[0].message.content;
+        
+        // Attempt to parse JSON from the AI
+        try {
+            const aiResponse = JSON.parse(content);
+            if (aiResponse.actions) {
+                aiResponse.actions.forEach(action => executeAIAction(action));
+                logToTerminal("AI: COMMANDS EXECUTED VIA API", "ai-msg");
+            } else {
+                throw new Error("No actions in response");
+            }
+        } catch (e) {
+            throw new Error("AI response format invalid");
         }
-    </script>
+
+    } catch (e) {
+        // 2. FALLBACK: Local Logic Engine (Simulated AI)
+        logToTerminal(`AI: API UNREACHABLE. USING LOCAL LOGIC.`, "system");
+        await new Promise(r => setTimeout(r, 800));
+        const localActions = parseLocalLogic(instruction);
+        
+        if (localActions.length > 0) {
+            localActions.forEach(action => executeAIAction(action));
+            logToTerminal("AI: COMMANDS EXECUTED LOCALLY", "ai-msg");
+        } else {
+            logToTerminal("AI: INSTRUCTION UNCLEAR.", "error-msg");
+            logToTerminal("TRY: '/ai create command /beep'", "system");
+            logToTerminal("TRY: '/ai make background red'", "system");
+            logToTerminal("TRY: '/ai send hello world'", "system");
+        }
+    }
+
+    setAIStatus(false);
+}
+
+// The safe executor for both API and Local responses
+function executeAIAction(action) {
+    switch(action.type) {
+        case 'style':
+            if (action.var && action.value) {
+                document.documentElement.style.setProperty(action.var, action.value);
+                logToTerminal(`STYLE UPDATE: ${action.var} -> ${action.value}`, "system");
+            }
+            break;
+        case 'mqtt':
+            if (action.text && isConnected) {
+                const msg = new Paho.MQTT.Message(JSON.stringify({
+                    nick: "AI_BOT",
+                    text: action.text,
+                    timestamp: new Date().toLocaleTimeString()
+                }));
+                msg.destinationName = MQTT_TOPIC;
+                client.send(msg);
+                logToTerminal(`MQTT BROADCAST: ${action.text}`, "system");
+            } else {
+                logToTerminal("MQTT BROADCAST FAILED (OFFLINE)", "error-msg");
+            }
+            break;
+        case 'register':
+            if (action.cmd) {
+                registerDynamicCommand(action.cmd, action.text || "Command executed");
+            }
+            break;
+        case 'action_cmd':
+             if (action.cmd && action.target) {
+                 // Register a command that performs an action (like beep)
+                 registerDynamicAction(action.cmd, 'beep');
+             }
+             break;
+    }
+}
+
+// Local "Brain" for when API is offline
+function parseLocalLogic(instruction) {
+    const actions = [];
+    const lower = instruction.toLowerCase();
+
+    // Handle "Create command [cmd]"
+    const createMatch = lower.match(/create command (\S+)/);
+    if (createMatch) {
+        const newCmd = createMatch[1].toLowerCase();
+        actions.push({ type: 'register', cmd: newCmd, text: `Executing dynamic command ${newCmd}...` });
+        
+        // If the command is beep related, register the action
+        if (lower.includes('beep')) {
+            registerDynamicAction(newCmd, 'beep');
+        }
+        return actions;
+    }
+
+    // Handle Background Colors
+    if (lower.includes('background') || lower.includes('bg')) {
+        const colors = ['blue', 'red', 'black', 'green', 'white', 'purple', 'orange', 'yellow', 'grey'];
+        const found = colors.find(c => lower.includes(c));
+        if (found) actions.push({ type: 'style', var: '--main-bg', value: found });
+    }
+
+    // Handle Text Colors
+    if (lower.includes('text') || lower.includes('font')) {
+        const colors = ['blue', 'red', 'green', 'white', 'yellow', 'cyan'];
+        const found = colors.find(c => lower.includes(c));
+        if (found) actions.push({ type: 'style', var: '--term-color', value: found });
+    }
+
+    // Handle MQTT Send
+    if (lower.includes('send')) {
+        const sendText = instruction.replace(/send\s*/i, '');
+        actions.push({ type: 'mqtt', text: sendText });
+    }
+
+    return actions;
+}
+
+function setAIStatus(thinking) {
+    if (thinking) {
+        statusLight.className = "status-indicator status-thinking";
+        statusText.textContent = "AI PROCESSING";
+    } else {
+        if (isConnected) {
+            statusLight.className = "status-indicator status-online";
+            statusText.textContent = "ONLINE";
+        } else {
+            statusLight.className = "status-indicator status-offline";
+            statusText.textContent = "OFFLINE";
+        }
+    }
+}
+
+/* --- STANDARD COMMANDS --- */
+function processCommand(cmd) {
+    const parts = cmd.split(' ');
+    const command = parts[0].toLowerCase();
+
+    // Check Dynamic Commands First
+    if (dynamicCommands[command]) {
+        executeDynamicCommand(command);
+        return;
+    }
+
+    switch (command) {
+        case '/help':
+            logToTerminal("COMMANDS:", "system");
+            logToTerminal(" /ai [cmd] - AI Control", "system");
+            logToTerminal(" /ai create command /name - NEW FEATURE", "system");
+            logToTerminal(" /nick [name] - Change ID", "system");
+            logToTerminal(" /clear - Wipe Term", "system");
+            break;
+        case '/nick':
+            if (parts[1]) {
+                const oldNick = nickname;
+                nickname = parts[1];
+                logToTerminal(`ID UPDATED: ${oldNick} -> ${nickname}`, "system");
+            } else {
+                logToTerminal("ERROR: NAME REQUIRED", "error-msg");
+            }
+            break;
+        case '/clear':
+            chatRoom.innerHTML = '';
+            break;
+        default:
+            logToTerminal(`UNKNOWN: ${command}`, "error-msg");
+            break;
+    }
+}
+
+/* --- MQTT CALLBACKS --- */
+function onConnect() {
+    isConnected = true;
+    statusText.innerHTML = "ONLINE";
+    statusLight.className = "status-indicator status-online";
+    client.subscribe(MQTT_TOPIC);
+    logToTerminal("UPLINK ESTABLISHED.", "system");
+    logToTerminal(`WELCOME, ${nickname}.`, "system");
+    playSound('success');
+}
+
+function onFailure(responseObject) {
+    isConnected = false;
+    statusText.innerHTML = "ERR";
+    statusLight.className = "status-indicator status-offline";
+    const errMsg = (responseObject && responseObject.errorMessage) ? responseObject.errorMessage : "Unknown Error";
+    logToTerminal(`CONN FAILED: ${errMsg}`, "error-msg");
+    logToTerminal("RETRYING...", "system");
+    setTimeout(connectMQTT, 5000);
+}
+
+function onConnectionLost(responseObject) {
+    if (responseObject.errorCode !== 0) {
+        isConnected = false;
+        statusText.innerHTML = "OFFLINE";
+        statusLight.className = "status-indicator status-offline";
+        logToTerminal("UPLINK SEVERED.", "error-msg");
+        playSound('alert');
+    }
+}
+
+function onMessageArrived(message) {
+    try {
+        if (!message.payloadString) return;
+        const payload = JSON.parse(message.payloadString);
+        if (payload && payload.nick && payload.text) {
+            if (payload.nick !== nickname) {
+                renderMessage(payload.nick, payload.text, 'other-msg');
+                playSound('alert');
+            }
+        }
+    } catch (e) {}
+}
+
+/* --- UI HELPERS --- */
+function escapeHTML(str) {
+    if(!str) return "";
+    return String(str).replace(/[&<>"']/g, function(m) {
+        return ({
+            '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+        })[m];
+    });
+}
+
+function logToTerminal(text, type) {
+    const line = document.createElement('div');
+    line.className = type;
+    const time = new Date().toLocaleTimeString([], { hour12: false });
+    line.innerHTML = `[${time}] ${escapeHTML(text)}`;
+    chatRoom.appendChild(line);
+    scrollToBottom();
+}
+
+function renderMessage(nick, text, cssClass) {
+    const line = document.createElement('div');
+    const time = new Date().toLocaleTimeString([], { hour12: false, hour: '2-digit', minute:'2-digit' });
+    line.innerHTML = `<span style="opacity:0.6">[${time}]</span> <span style="font-weight:bold">&lt;${escapeHTML(nick)}&gt;</span> ${escapeHTML(text)}`;
+    line.className = cssClass;
+    chatRoom.appendChild(line);
+    scrollToBottom();
+}
+
+function scrollToBottom() {
+    setTimeout(() => {
+        outputDiv.scrollTop = outputDiv.scrollHeight;
+    }, 0);
+}
+</script>
 </body>
 </html>
