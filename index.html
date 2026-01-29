@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="theme-color" content="#051005">
+    <title>TermOS LT 🌌</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="manifest" href="manifest.json">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>💻</text></svg>">
+</head>
+<body class="crt">
+
+    <header>
+        <div class="brand">TermOS LT <span>_</span></div>
+        <div class="status-bar">
+            <span id="levelDisplay">LVL: 1</span>
+            <div class="xp-bar-container"><div class="xp-fill" id="xpFill"></div></div>
+            <span id="roomDisplay">LOUNGE</span>
+        </div>
+    </header>
+
+    <div class="main-container">
+        <aside>
+            <div class="sidebar-header">MULTIVERSE</div>
+            <ul class="room-list">
+                <li class="room-item active" onclick="app.switchRoom('LOUNGE')">🎭 Lounge</li>
+                <li class="room-item" onclick="app.switchRoom('LIBRARY')">📚 Library</li>
+                <li class="room-item" onclick="app.switchRoom('WORKSHOP')">🛠️ Workshop</li>
+                <li class="room-item" onclick="app.switchRoom('STUDIO')">🎨 Studio</li>
+                <li class="room-item" onclick="app.switchRoom('THINKTANK')">🧠 Think Tank</li>
+            </ul>
+            <div style="padding:10px; font-size:0.8rem; color:var(--term-dim);">
+                <button class="btn" style="width:100%; font-size:0.7rem;" onclick="ui.openSettings()">[ CONFIG API ]</button>
+            </div>
+        </aside>
+
+        <main id="chatWindow">
+            <!-- Messages will be injected here -->
+        </main>
+    </div>
+
+    <footer>
+        <span class="prompt-char">➜</span>
+        <input type="text" class="cmd-input" id="cmdInput" placeholder="Enter command or message..." autocomplete="off">
+        <button class="btn" id="sendBtn">EXEC</button>
+        <button class="btn btn-voice" id="voiceBtn">🎙️</button>
+    </footer>
+
+    <!-- --- MODALS --- -->
+
+    <!-- Settings Modal -->
+    <div class="modal" id="settingsModal">
+        <div class="modal-content">
+            <h2>SYSTEM CONFIG</h2>
+            <div class="form-group">
+                <label>OpenAI API Key (sk-...)</label>
+                <input type="password" id="apiKeyInput">
+            </div>
+            <div class="form-group">
+                <label>CORS Proxy (Fixes Network Error)</label>
+                <input type="text" id="proxyInput" value="https://corsproxy.io/?">
+            </div>
+            <div class="modal-actions">
+                <button class="btn" onclick="ui.closeModal('settingsModal')">CLOSE</button>
+                <button class="btn" style="background:var(--term-green); color:black;" onclick="app.saveConfig()">SAVE</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Stats Modal -->
+    <div class="modal" id="statsModal">
+        <div class="modal-content">
+            <h2>USER PROFILE</h2>
+            <div id="currentAvatarDisplay" class="ascii-avatar"></div>
+            <p id="profileText">Loading...</p>
+            <hr>
+            <h3>UNLOCKED AVATARS</h3>
+            <div id="avatarList"></div>
+            <div class="modal-actions">
+                <button class="btn" onclick="ui.closeModal('statsModal')">CLOSE</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Game Modal -->
+    <div class="modal" id="gameModal">
+        <div class="modal-content" style="border-color:var(--term-blue);">
+            <h2 style="color:var(--term-blue)">GAME CONSOLE</h2>
+            <div class="panel-content">
+                <div class="game-canvas">
+                    <div id="miniGame" style="display:grid; grid-template-columns: repeat(3, 50px); gap:5px; margin-top:10px;"></div>
+                </div>
+                <p>HACKING PROGRESS: <span id="hackProgress">0</span>%</p>
+            </div>
+            <div class="modal-actions">
+                <button class="btn" onclick="ui.closeModal('gameModal')">TERMINATE</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Music Modal -->
+    <div class="modal" id="musicModal">
+        <div class="modal-content" style="border-color:var(--term-amber);">
+            <h2 style="color:var(--term-amber)">AUDIO SYSTEM</h2>
+            <div class="panel-content">
+                <div style="font-size:3rem; margin:20px;">🎵</div>
+                <p>NOW PLAYING: CYBERPUNK_BEATS.mp3</p>
+                <div class="wave-bar"></div>
+                <p>STATUS: STREAMING</p>
+            </div>
+            <div class="modal-actions">
+                <button class="btn" onclick="ui.closeModal('musicModal')">STOP</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="main.js"></script>
+</body>
+</html>
