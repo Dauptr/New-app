@@ -622,4 +622,28 @@ const ai = {
             }
         }
 
-        const finalText = response
+        const finalText = responseText || "ALL NEURAL PATHWAYS FAILED (CHECK KEYS).";
+        ui.log("TERMAI: " + finalText, "ai-msg");
+        
+        if (State.synthesis.speaking) State.synthesis.cancel();
+        const u = new SpeechSynthesisUtterance(finalText);
+        State.synthesis.speak(u);
+        
+        actions.addXP(5);
+    }
+};
+
+/* --- BOOT --- */
+document.getElementById('command-input').addEventListener('keydown', e => { if(e.key === 'Enter') actions.send(); });
+window.onload = () => {
+    ui.updateStats();
+    connectMQTT();
+    // Check if keys exist, warn if not
+    if(!State.keys.groq && !State.keys.zhipu && !State.keys.openai) {
+        ui.log("WARNING: NO API KEYS FOUND.", "error-msg");
+    }
+};
+
+</script>
+</body>
+</html>
