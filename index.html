@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>TermOS LT 🌌 // WORKING BUILD</title>
+<title>TermOS LT 🌌 // FIXED API</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/paho-mqtt/1.0.1/mqttws31.min.js"></script>
 <style>
 /* --- STYLES --- */
@@ -124,6 +124,7 @@ input[type="text"] {
 .ai-msg { color: #00ffff; text-shadow: 0 0 5px #00ffff; }
 .error-msg { color: var(--danger-color); font-weight: bold; }
 .cmd-msg { color: #ff00ff; }
+.success-msg { color: #00ff00; font-weight: bold; }
 
 .hidden { display: none !important; }
 @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0; } }
@@ -139,13 +140,14 @@ input[type="text"] {
 .key-box {
     background: #000; border: 2px solid var(--term-color);
     padding: 20px; width: 80%; max-width: 500px;
-    box-shadow: 0 0 20px var(--term-color);
+    box-shadow: 0 0 20px var(--term-glow);
 }
 .key-input {
     width: 100%; background: #111; border: 1px solid var(--term-color);
     color: var(--term-color); padding: 10px; margin-bottom: 10px;
     font-family: var(--font-stack); font-size: 0.9rem;
 }
+.key-label { display: flex; justify-content: space-between; font-size: 0.7rem; margin-bottom: 2px; color: #aaa; }
 
 @media (max-width: 700px) {
     #os-container { margin: 0; height: 100vh; border: none; }
@@ -179,15 +181,14 @@ input[type="text"] {
             <div style="color:var(--system-color)">SYSTEM</div>
             <div class="app-card" onclick="openKeyModal()">🔑 SETUP KEYS</div>
             <div class="app-card" onclick="executeSystemCommand('/stats')">📊 Stats</div>
-            <div class="app-card" onclick="executeSystemCommand('/avatar')">🎭 Avatar</div>
             <div class="app-card" onclick="executeSystemCommand('/clear')">🗑️ Clear</div>
         </div>
         <div id="terminal-output">
             <div id="intro">
-                <p>BOOTING TermOS LT v3.2...</p>
-                <p>CHECKING CREDENTIALS...</p>
+                <p>BOOTING TermOS LT v3.3...</p>
+                <p>SYSTEM OPTIMIZED.</p>
                 <p>&nbsp;</p>
-                <p>NOTE: If AI is offline, run /SETUPKEYS.</p>
+                <p>NOTE: If AI fails, check KEYS settings.</p>
             </div>
         </div>
     </main>
@@ -203,18 +204,20 @@ input[type="text"] {
 <div id="key-modal" class="hidden">
     <div class="key-box">
         <h3 style="color:var(--system-color); margin-bottom:10px;">SECURE KEY SETUP</h3>
-        <div style="font-size:0.8rem; margin-bottom:10px; color:#ccc;">Keys are saved in your browser's LocalStorage. They are never sent to our servers, only to the AI provider.</div>
+        <div style="font-size:0.8rem; margin-bottom:15px; color:#ccc;">Keys are stored locally. Ensure no spaces before/after the key.</div>
         
-        <label>OpenAI Key (sk-...):</label>
+        <div class="key-label"><span>OpenAI Key</span> <span onclick="document.getElementById('input-openai').value=''">❌</span></div>
         <input type="password" id="input-openai" class="key-input" placeholder="sk-proj-...">
         
-        <label>Groq Key (gsk-...):</label>
+        <div class="key-label"><span>Groq Key</span> <span onclick="document.getElementById('input-groq').value=''">❌</span></div>
         <input type="password" id="input-groq" class="key-input" placeholder="gsk_...">
         
-        <div style="display:flex; justify-content:flex-end; gap:10px; margin-top:10px;">
+        <div style="display:flex; justify-content:space-between; gap:10px; margin-top:15px;">
+            <button class="btn-icon" onclick="testKeys()" style="border-color:var(--system-color);">TEST KEYS</button>
             <button class="btn-icon" onclick="closeKeyModal()">CANCEL</button>
-            <button class="btn-icon" style="background:var(--term-color); color:#000;" onclick="saveKeys()">SAVE & REBOOT</button>
+            <button class="btn-icon" style="background:var(--term-color); color:#000;" onclick="saveKeys()">SAVE</button>
         </div>
+        <div id="test-result" style="margin-top:10px; font-size:0.8rem; word-wrap:break-word;"></div>
     </div>
 </div>
 
@@ -246,6 +249,7 @@ const State = {
 function openKeyModal() {
     document.getElementById('input-openai').value = CONFIG.keys.openai;
     document.getElementById('input-groq').value = CONFIG.keys.groq;
+    document.getElementById('test-result').textContent = "";
     document.getElementById('key-modal').classList.remove('hidden');
 }
 
@@ -253,7 +257,51 @@ function closeKeyModal() {
     document.getElementById('key-modal').classList.add('hidden');
 }
 
+async function testKeys() {
+    const openai = document.getElementById('input-openai').value.trim();
+    const groq = document.getElementById('input-groq').value.trim();
+    const resDiv = document.getElementById('test-result');
+    
+    resDiv.textContent = "TESTING CONNECTION...";
+    resDiv.style.color = "yellow";
+
+    if(!openai && !groq) {
+        resDiv.textContent = "ERROR: No keys entered.";
+        resDiv.style.color = "red";
+        return;
+    }
+
+    let ok = true;
+    let msg = [];
+
+    // Test OpenAI
+    if(openai) {
+        try {
+            const res = await fetch("https://api.openai.com/v1/models", {
+                headers: { "Authorization": `Bearer ${openai}` }
+            });
+            if(res.ok) msg.push("OpenAI: OK ✅");
+            else throw new Error(`OpenAI: ${res.status} (Likely Invalid Key)`);
+        } catch(e) { msg.push(`OpenAI: FAIL (${e.message}) ❌`); ok = false; }
+    }
+
+    // Test Groq
+    if(groq) {
+        try {
+            const res = await fetch("https://api.groq.com/openai/v1/models", {
+                headers: { "Authorization": `Bearer ${groq}` }
+            });
+            if(res.ok) msg.push("Groq: OK ✅");
+            else throw new Error(`Groq: ${res.status}`);
+        } catch(e) { msg.push(`Groq: FAIL (${e.message}) ❌`); ok = false; }
+    }
+
+    resDiv.innerHTML = msg.join("<br>");
+    resDiv.style.color = ok ? "#00ff00" : "red";
+}
+
 function saveKeys() {
+    // CRITICAL FIX: Trim whitespace
     const openai = document.getElementById('input-openai').value.trim();
     const groq = document.getElementById('input-groq').value.trim();
 
@@ -264,8 +312,9 @@ function saveKeys() {
     CONFIG.keys.groq = groq;
     
     closeKeyModal();
-    logSystem("KEYS SAVED. SYSTEM REBOOTING...", "system");
-    setTimeout(() => location.reload(), 1000);
+    logSystem("KEYS SAVED.", "system");
+    // We do NOT reload to save chat history, just update status
+    document.getElementById('ai-provider').textContent = "AI: READY";
 }
 
 /* --- PERSISTENCE --- */
@@ -334,7 +383,7 @@ function joinRoom(roomKey) {
     logSystem(`ENTERED ROOM: ${CONFIG.rooms[roomKey].name}`, "system");
 }
 
-/* --- AI ENGINE --- */
+/* --- AI ENGINE (DEEP ERROR LOGGING) --- */
 async function queryAI(prompt) {
     logSystem("CONTACTING NEURAL NET...", "ai-msg");
     const systemPrompt = `${CONFIG.rooms[State.user.room].persona} Keep answers short.`;
@@ -353,7 +402,17 @@ async function queryAI(prompt) {
                     messages: [{ role: "system", content: systemPrompt }, { role: "user", content: prompt }]
                 })
             });
-            if (!res.ok) throw new Error(`OpenAI Error: ${res.status}`);
+            
+            if (!res.ok) {
+                // DEEP ERROR PARSE
+                let errMsg = `Status ${res.status}`;
+                try {
+                    const errJson = await res.json();
+                    if(errJson.error && errJson.error.message) errMsg = errJson.error.message;
+                } catch(e) {}
+                throw new Error("OpenAI: " + errMsg);
+            }
+
             const data = await res.json();
             result = data.choices[0].message.content;
             providerUsed = "OPENAI";
@@ -367,27 +426,32 @@ async function queryAI(prompt) {
                 method: "POST",
                 headers: { "Authorization": `Bearer ${CONFIG.keys.groq}`, "Content-Type": "application/json" },
                 body: JSON.stringify({
-                    model: "llama3-8b-8192",
+                    model: "llama3-70b-8192", // Using 70b for better reasoning
                     messages: [{ role: "system", content: systemPrompt }, { role: "user", content: prompt }]
                 })
             });
-            if (!res.ok) throw new Error(`Groq Error: ${res.status}`);
+            
+            if (!res.ok) {
+                let errMsg = `Status ${res.status}`;
+                try {
+                    const errJson = await res.json();
+                    if(errJson.error && errJson.error.message) errMsg = errJson.error.message;
+                } catch(e) {}
+                throw new Error("Groq: " + errMsg);
+            }
+
             const data = await res.json();
             result = data.choices[0].message.content;
             providerUsed = "GROQ";
         } catch (e) { logSystem(e.message, "error-msg"); }
     }
 
-    // FALLBACK / SIMULATION
-    if (!result) {
-        result = "My neural pathways are offline (No Keys). Please run /SETUPKEYS to connect me to the cloud.";
-        logSystem(result, "ai-msg");
-        logSystem("HINT: Click APPS -> SETUP KEYS", "system");
-    } else {
+    if (result) {
         logSystem("AI (" + providerUsed + "): " + result, "ai-msg");
+        addXP(5);
+    } else {
+        logSystem("NO AI RESPONSE. CHECK KEYS.", "error-msg");
     }
-    
-    addXP(5);
 }
 
 /* --- UI LOGIC --- */
@@ -412,7 +476,6 @@ async function processInput(rawText) {
         State.client.send(msg);
     }
     
-    // Simple trigger for AI
     if (text.includes("AI") || text.includes("HELP") || text.includes("?")) queryAI(rawText);
 }
 
@@ -421,9 +484,7 @@ function executeSystemCommand(cmd) {
     const command = parts[0].toLowerCase();
 
     switch (command) {
-        case '/help': 
-            logSystem("CMD: /ROOM, /NICK, /AI [PROMPT], /CLEAR, /SETUPKEYS", "system"); 
-            break;
+        case '/help': logSystem("CMD: /ROOM, /NICK, /AI [PROMPT], /CLEAR, /SETUPKEYS", "system"); break;
         case '/room': 
             const r = parts[1]?.toLowerCase();
             if (CONFIG.rooms[r]) joinRoom(r);
@@ -439,11 +500,8 @@ function executeSystemCommand(cmd) {
             if (prompt) queryAI(prompt); 
             else logSystem("NEED PROMPT", "error-msg"); 
             break;
-        case '/setupkeys': 
-            openKeyModal(); 
-            break;
+        case '/setupkeys': openKeyModal(); break;
         case '/stats': logSystem(`LVL ${State.user.level} | XP ${State.user.xp}`, "ai-msg"); break;
-        case '/avatar': document.getElementById('avatar-box').textContent = AVATARS[State.user.level]; break;
         default: logSystem(`UNKNOWN COMMAND`, "error-msg");
     }
 }
@@ -482,15 +540,7 @@ window.onload = () => {
     updateUI(); 
     connectMQTT(); 
     logSystem("SYSTEM READY.", "system");
-    
-    // Auto-prompt if no keys
-    if (!CONFIG.keys.openai && !CONFIG.keys.groq) {
-        setTimeout(() => {
-            logSystem("WARNING: NO AI KEYS DETECTED.", "error-msg");
-            logSystem("Click APPS -> SETUP KEYS to enable AI.", "system");
-        }, 1000);
-    }
 };
 </script>
 </body>
-</html>
+
