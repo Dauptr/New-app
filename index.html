@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>TermOS LT 🌌 // FIXED API</title>
+<title>TermOS LT 🌌 // DEEPSEEK INTEGRATED</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/paho-mqtt/1.0.1/mqttws31.min.js"></script>
 <style>
 /* --- STYLES --- */
@@ -141,6 +141,7 @@ input[type="text"] {
     background: #000; border: 2px solid var(--term-color);
     padding: 20px; width: 80%; max-width: 500px;
     box-shadow: 0 0 20px var(--term-glow);
+    overflow-y: auto; max-height: 80vh;
 }
 .key-input {
     width: 100%; background: #111; border: 1px solid var(--term-color);
@@ -185,10 +186,9 @@ input[type="text"] {
         </div>
         <div id="terminal-output">
             <div id="intro">
-                <p>BOOTING TermOS LT v3.3...</p>
-                <p>SYSTEM OPTIMIZED.</p>
-                <p>&nbsp;</p>
-                <p>NOTE: If AI fails, check KEYS settings.</p>
+                <p>BOOTING TermOS LT v3.5...</p>
+                <p>ADDED PROVIDER: DEEPSEEK.</p>
+                <p>READY FOR INPUT.</p>
             </div>
         </div>
     </main>
@@ -204,13 +204,16 @@ input[type="text"] {
 <div id="key-modal" class="hidden">
     <div class="key-box">
         <h3 style="color:var(--system-color); margin-bottom:10px;">SECURE KEY SETUP</h3>
-        <div style="font-size:0.8rem; margin-bottom:15px; color:#ccc;">Keys are stored locally. Ensure no spaces before/after the key.</div>
+        <div style="font-size:0.8rem; margin-bottom:15px; color:#ccc;">Add keys for redundancy. System auto-falls back.</div>
         
         <div class="key-label"><span>OpenAI Key</span> <span onclick="document.getElementById('input-openai').value=''">❌</span></div>
         <input type="password" id="input-openai" class="key-input" placeholder="sk-proj-...">
         
         <div class="key-label"><span>Groq Key</span> <span onclick="document.getElementById('input-groq').value=''">❌</span></div>
         <input type="password" id="input-groq" class="key-input" placeholder="gsk_...">
+        
+        <div class="key-label"><span>DeepSeek Key (sk-...)</span> <span onclick="document.getElementById('input-deepseek').value=''">❌</span></div>
+        <input type="password" id="input-deepseek" class="key-input" placeholder="sk-...">
         
         <div style="display:flex; justify-content:space-between; gap:10px; margin-top:15px;">
             <button class="btn-icon" onclick="testKeys()" style="border-color:var(--system-color);">TEST KEYS</button>
@@ -227,7 +230,8 @@ const CONFIG = {
     mqtt: { host: "broker.hivemq.com", port: 8884, baseTopic: "termos/lt/v5" },
     keys: {
         openai: localStorage.getItem('termos_key_openai') || "",
-        groq: localStorage.getItem('termos_key_groq') || ""
+        groq: localStorage.getItem('termos_key_groq') || "",
+        deepseek: localStorage.getItem('termos_key_deepseek') || "" // NEW
     },
     rooms: {
         library: { name: "LIBRARY", persona: "You are a helpful Librarian AI.", topic: "library" },
@@ -249,6 +253,7 @@ const State = {
 function openKeyModal() {
     document.getElementById('input-openai').value = CONFIG.keys.openai;
     document.getElementById('input-groq').value = CONFIG.keys.groq;
+    document.getElementById('input-deepseek').value = CONFIG.keys.deepseek; // NEW
     document.getElementById('test-result').textContent = "";
     document.getElementById('key-modal').classList.remove('hidden');
 }
@@ -260,16 +265,11 @@ function closeKeyModal() {
 async function testKeys() {
     const openai = document.getElementById('input-openai').value.trim();
     const groq = document.getElementById('input-groq').value.trim();
+    const deepseek = document.getElementById('input-deepseek').value.trim(); // NEW
     const resDiv = document.getElementById('test-result');
     
     resDiv.textContent = "TESTING CONNECTION...";
     resDiv.style.color = "yellow";
-
-    if(!openai && !groq) {
-        resDiv.textContent = "ERROR: No keys entered.";
-        resDiv.style.color = "red";
-        return;
-    }
 
     let ok = true;
     let msg = [];
@@ -277,23 +277,28 @@ async function testKeys() {
     // Test OpenAI
     if(openai) {
         try {
-            const res = await fetch("https://api.openai.com/v1/models", {
-                headers: { "Authorization": `Bearer ${openai}` }
-            });
+            const res = await fetch("https://api.openai.com/v1/models", { headers: { "Authorization": `Bearer ${openai}` } });
             if(res.ok) msg.push("OpenAI: OK ✅");
-            else throw new Error(`OpenAI: ${res.status} (Likely Invalid Key)`);
-        } catch(e) { msg.push(`OpenAI: FAIL (${e.message}) ❌`); ok = false; }
+            else throw new Error(`OpenAI: ${res.status}`);
+        } catch(e) { msg.push(`OpenAI: FAIL ❌`); ok = false; }
     }
 
     // Test Groq
     if(groq) {
         try {
-            const res = await fetch("https://api.groq.com/openai/v1/models", {
-                headers: { "Authorization": `Bearer ${groq}` }
-            });
+            const res = await fetch("https://api.groq.com/openai/v1/models", { headers: { "Authorization": `Bearer ${groq}` } });
             if(res.ok) msg.push("Groq: OK ✅");
             else throw new Error(`Groq: ${res.status}`);
-        } catch(e) { msg.push(`Groq: FAIL (${e.message}) ❌`); ok = false; }
+        } catch(e) { msg.push(`Groq: FAIL ❌`); ok = false; }
+    }
+
+    // Test DeepSeek (NEW)
+    if(deepseek) {
+        try {
+            const res = await fetch("https://api.deepseek.com/v1/models", { headers: { "Authorization": `Bearer ${deepseek}` } });
+            if(res.ok) msg.push("DeepSeek: OK ✅");
+            else throw new Error(`DeepSeek: ${res.status}`);
+        } catch(e) { msg.push(`DeepSeek: FAIL ❌`); ok = false; }
     }
 
     resDiv.innerHTML = msg.join("<br>");
@@ -301,19 +306,20 @@ async function testKeys() {
 }
 
 function saveKeys() {
-    // CRITICAL FIX: Trim whitespace
     const openai = document.getElementById('input-openai').value.trim();
     const groq = document.getElementById('input-groq').value.trim();
+    const deepseek = document.getElementById('input-deepseek').value.trim(); // NEW
 
     localStorage.setItem('termos_key_openai', openai);
     localStorage.setItem('termos_key_groq', groq);
+    localStorage.setItem('termos_key_deepseek', deepseek); // NEW
     
     CONFIG.keys.openai = openai;
     CONFIG.keys.groq = groq;
+    CONFIG.keys.deepseek = deepseek; // NEW
     
     closeKeyModal();
     logSystem("KEYS SAVED.", "system");
-    // We do NOT reload to save chat history, just update status
     document.getElementById('ai-provider').textContent = "AI: READY";
 }
 
@@ -383,7 +389,7 @@ function joinRoom(roomKey) {
     logSystem(`ENTERED ROOM: ${CONFIG.rooms[roomKey].name}`, "system");
 }
 
-/* --- AI ENGINE (DEEP ERROR LOGGING) --- */
+/* --- AI ENGINE (DEEPSEEK ADDED) --- */
 async function queryAI(prompt) {
     logSystem("CONTACTING NEURAL NET...", "ai-msg");
     const systemPrompt = `${CONFIG.rooms[State.user.room].persona} Keep answers short.`;
@@ -391,7 +397,7 @@ async function queryAI(prompt) {
     let result = null;
     let providerUsed = "LOCAL";
 
-    // TRY OPENAI
+    // 1. TRY OPENAI
     if (CONFIG.keys.openai) {
         try {
             const res = await fetch("https://api.openai.com/v1/chat/completions", {
@@ -403,54 +409,58 @@ async function queryAI(prompt) {
                 })
             });
             
-            if (!res.ok) {
-                // DEEP ERROR PARSE
-                let errMsg = `Status ${res.status}`;
-                try {
-                    const errJson = await res.json();
-                    if(errJson.error && errJson.error.message) errMsg = errJson.error.message;
-                } catch(e) {}
-                throw new Error("OpenAI: " + errMsg);
-            }
-
+            if (!res.ok) throw new Error("Quota or Auth Error");
             const data = await res.json();
             result = data.choices[0].message.content;
             providerUsed = "OPENAI";
-        } catch (e) { logSystem(e.message, "error-msg"); }
+        } catch (e) { /* Silent fail, try next */ }
     }
 
-    // TRY GROQ
+    // 2. TRY GROQ
     if (!result && CONFIG.keys.groq) {
         try {
+            logSystem("OPENAI FAIL. TRYING GROQ...", "system");
             const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
                 method: "POST",
                 headers: { "Authorization": `Bearer ${CONFIG.keys.groq}`, "Content-Type": "application/json" },
                 body: JSON.stringify({
-                    model: "llama3-70b-8192", // Using 70b for better reasoning
+                    model: "llama-3.3-70b-versatile",
                     messages: [{ role: "system", content: systemPrompt }, { role: "user", content: prompt }]
                 })
             });
-            
-            if (!res.ok) {
-                let errMsg = `Status ${res.status}`;
-                try {
-                    const errJson = await res.json();
-                    if(errJson.error && errJson.error.message) errMsg = errJson.error.message;
-                } catch(e) {}
-                throw new Error("Groq: " + errMsg);
-            }
-
+            if (!res.ok) throw new Error();
             const data = await res.json();
             result = data.choices[0].message.content;
             providerUsed = "GROQ";
-        } catch (e) { logSystem(e.message, "error-msg"); }
+        } catch (e) { /* Silent fail, try next */ }
+    }
+
+    // 3. TRY DEEPSEEK (NEW)
+    if (!result && CONFIG.keys.deepseek) {
+        try {
+            logSystem("OTHERS FAILED. TRYING DEEPSEEK...", "system");
+            const res = await fetch("https://api.deepseek.com/chat/completions", {
+                method: "POST",
+                headers: { "Authorization": `Bearer ${CONFIG.keys.deepseek}`, "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    model: "deepseek-chat",
+                    messages: [{ role: "system", content: systemPrompt }, { role: "user", content: prompt }]
+                })
+            });
+            if (!res.ok) throw new Error();
+            const data = await res.json();
+            result = data.choices[0].message.content;
+            providerUsed = "DEEPSEEK";
+        } catch (e) { 
+            logSystem("DEEPSEEK ERROR.", "error-msg"); 
+        }
     }
 
     if (result) {
         logSystem("AI (" + providerUsed + "): " + result, "ai-msg");
         addXP(5);
     } else {
-        logSystem("NO AI RESPONSE. CHECK KEYS.", "error-msg");
+        logSystem("ALL AI PROVIDERS FAILED.", "error-msg");
     }
 }
 
@@ -539,8 +549,9 @@ function sendMessage() { processInput(inputField.value); }
 window.onload = () => { 
     updateUI(); 
     connectMQTT(); 
-    logSystem("SYSTEM READY.", "system");
+    logSystem("SYSTEM READY. DEEPSEEK ACTIVE.", "system");
 };
 </script>
 </body>
+</html>
 
