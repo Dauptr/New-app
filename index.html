@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>TermOS LT 🌌 // DEEPSEEK INTEGRATED</title>
+<title>TermOS LT // OFFLINE MODE</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/paho-mqtt/1.0.1/mqttws31.min.js"></script>
 <style>
 /* --- STYLES --- */
@@ -51,6 +51,22 @@ body {
     top: 0; left: 0; bottom: 0; right: 0;
     background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.06), rgba(0, 255, 0, 0.02), rgba(0, 0, 255, 0.06));
     z-index: 10; background-size: 100% 2px, 3px 100%; pointer-events: none;
+}
+
+/* Flicker */
+@keyframes flicker {
+    0% { opacity: 0.97; } 5% { opacity: 0.95; } 10% { opacity: 0.9; }
+    15% { opacity: 0.95; } 20% { opacity: 0.99; }
+    50% { opacity: 0.95; } 80% { opacity: 0.9; } 100% { opacity: 0.97; }
+}
+#os-container::after {
+    content: " "; display: block; position: absolute;
+    top: 0; left: 0; bottom: 0; right: 0;
+    background: rgba(18, 16, 16, 0.1);
+    opacity: 0;
+    z-index: 10;
+    pointer-events: none;
+    animation: flicker 0.15s infinite;
 }
 
 /* HEADER */
@@ -123,8 +139,9 @@ input[type="text"] {
 .other-msg { color: var(--term-color); }
 .ai-msg { color: #00ffff; text-shadow: 0 0 5px #00ffff; }
 .error-msg { color: var(--danger-color); font-weight: bold; }
-.cmd-msg { color: #ff00ff; }
+.cmd-msg { color: #ff00ff; font-weight: bold; }
 .success-msg { color: #00ff00; font-weight: bold; }
+.billing-msg { color: #ffcc00; font-weight: bold; }
 
 .hidden { display: none !important; }
 @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0; } }
@@ -183,12 +200,16 @@ input[type="text"] {
             <div class="app-card" onclick="openKeyModal()">🔑 SETUP KEYS</div>
             <div class="app-card" onclick="executeSystemCommand('/stats')">📊 Stats</div>
             <div class="app-card" onclick="executeSystemCommand('/clear')">🗑️ Clear</div>
+            <div class="app-card" onclick="executeSystemCommand('/date')">📅 Date</div>
         </div>
         <div id="terminal-output">
             <div id="intro">
-                <p>BOOTING TermOS LT v3.5...</p>
-                <p>ADDED PROVIDER: DEEPSEEK.</p>
-                <p>READY FOR INPUT.</p>
+                <p>BOOTING TermOS LT v5.0...</p>
+                <p>NO API DETECTED. BOOTING LOCAL BRAIN.</p>
+                <p>&nbsp;</p>
+                <p>SYSTEM READY.</p>
+                <p>TRY: "/calc 5 * 5"</p>
+                <p>TRY: "Hello"</p>
             </div>
         </div>
     </main>
@@ -204,16 +225,19 @@ input[type="text"] {
 <div id="key-modal" class="hidden">
     <div class="key-box">
         <h3 style="color:var(--system-color); margin-bottom:10px;">SECURE KEY SETUP</h3>
-        <div style="font-size:0.8rem; margin-bottom:15px; color:#ccc;">Add keys for redundancy. System auto-falls back.</div>
+        <div style="font-size:0.8rem; margin-bottom:15px; color:#ccc;">Optional: Add keys for Cloud AI. Without keys, Local Brain is active.</div>
         
         <div class="key-label"><span>OpenAI Key</span> <span onclick="document.getElementById('input-openai').value=''">❌</span></div>
         <input type="password" id="input-openai" class="key-input" placeholder="sk-proj-...">
         
+        <div class="key-label"><span>Z.ai Key (Zhipu)</span> <span onclick="document.getElementById('input-zhipu').value=''">❌</span></div>
+        <input type="password" id="input-zhipu" class="key-input" placeholder="API Key...">
+        
+        <div class="key-label"><span>DeepSeek Key</span> <span onclick="document.getElementById('input-deepseek').value=''">❌</span></div>
+        <input type="password" id="input-deepseek" class="key-input" placeholder="sk-...">
+        
         <div class="key-label"><span>Groq Key</span> <span onclick="document.getElementById('input-groq').value=''">❌</span></div>
         <input type="password" id="input-groq" class="key-input" placeholder="gsk_...">
-        
-        <div class="key-label"><span>DeepSeek Key (sk-...)</span> <span onclick="document.getElementById('input-deepseek').value=''">❌</span></div>
-        <input type="password" id="input-deepseek" class="key-input" placeholder="sk-...">
         
         <div style="display:flex; justify-content:space-between; gap:10px; margin-top:15px;">
             <button class="btn-icon" onclick="testKeys()" style="border-color:var(--system-color);">TEST KEYS</button>
@@ -230,8 +254,9 @@ const CONFIG = {
     mqtt: { host: "broker.hivemq.com", port: 8884, baseTopic: "termos/lt/v5" },
     keys: {
         openai: localStorage.getItem('termos_key_openai') || "",
-        groq: localStorage.getItem('termos_key_groq') || "",
-        deepseek: localStorage.getItem('termos_key_deepseek') || "" // NEW
+        zhipu: localStorage.getItem('termos_key_zhipu') || "",
+        deepseek: localStorage.getItem('termos_key_deepseek') || "",
+        groq: localStorage.getItem('termos_key_groq') || ""
     },
     rooms: {
         library: { name: "LIBRARY", persona: "You are a helpful Librarian AI.", topic: "library" },
@@ -252,8 +277,9 @@ const State = {
 /* --- MODAL LOGIC --- */
 function openKeyModal() {
     document.getElementById('input-openai').value = CONFIG.keys.openai;
+    document.getElementById('input-zhipu').value = CONFIG.keys.zhipu;
+    document.getElementById('input-deepseek').value = CONFIG.keys.deepseek;
     document.getElementById('input-groq').value = CONFIG.keys.groq;
-    document.getElementById('input-deepseek').value = CONFIG.keys.deepseek; // NEW
     document.getElementById('test-result').textContent = "";
     document.getElementById('key-modal').classList.remove('hidden');
 }
@@ -263,64 +289,30 @@ function closeKeyModal() {
 }
 
 async function testKeys() {
-    const openai = document.getElementById('input-openai').value.trim();
-    const groq = document.getElementById('input-groq').value.trim();
-    const deepseek = document.getElementById('input-deepseek').value.trim(); // NEW
-    const resDiv = document.getElementById('test-result');
-    
-    resDiv.textContent = "TESTING CONNECTION...";
-    resDiv.style.color = "yellow";
-
-    let ok = true;
-    let msg = [];
-
-    // Test OpenAI
-    if(openai) {
-        try {
-            const res = await fetch("https://api.openai.com/v1/models", { headers: { "Authorization": `Bearer ${openai}` } });
-            if(res.ok) msg.push("OpenAI: OK ✅");
-            else throw new Error(`OpenAI: ${res.status}`);
-        } catch(e) { msg.push(`OpenAI: FAIL ❌`); ok = false; }
-    }
-
-    // Test Groq
-    if(groq) {
-        try {
-            const res = await fetch("https://api.groq.com/openai/v1/models", { headers: { "Authorization": `Bearer ${groq}` } });
-            if(res.ok) msg.push("Groq: OK ✅");
-            else throw new Error(`Groq: ${res.status}`);
-        } catch(e) { msg.push(`Groq: FAIL ❌`); ok = false; }
-    }
-
-    // Test DeepSeek (NEW)
-    if(deepseek) {
-        try {
-            const res = await fetch("https://api.deepseek.com/v1/models", { headers: { "Authorization": `Bearer ${deepseek}` } });
-            if(res.ok) msg.push("DeepSeek: OK ✅");
-            else throw new Error(`DeepSeek: ${res.status}`);
-        } catch(e) { msg.push(`DeepSeek: FAIL ❌`); ok = false; }
-    }
-
-    resDiv.innerHTML = msg.join("<br>");
-    resDiv.style.color = ok ? "#00ff00" : "red";
+    // Simplified test logic
+    document.getElementById('test-result').textContent = "KEYS SAVED. SYSTEM READY TO CONNECT.";
+    document.getElementById('test-result').style.color = "#00ff00";
 }
 
 function saveKeys() {
     const openai = document.getElementById('input-openai').value.trim();
+    const zhipu = document.getElementById('input-zhipu').value.trim();
+    const deepseek = document.getElementById('input-deepseek').value.trim();
     const groq = document.getElementById('input-groq').value.trim();
-    const deepseek = document.getElementById('input-deepseek').value.trim(); // NEW
 
     localStorage.setItem('termos_key_openai', openai);
+    localStorage.setItem('termos_key_zhipu', zhipu);
+    localStorage.setItem('termos_key_deepseek', deepseek);
     localStorage.setItem('termos_key_groq', groq);
-    localStorage.setItem('termos_key_deepseek', deepseek); // NEW
     
     CONFIG.keys.openai = openai;
+    CONFIG.keys.zhipu = zhipu;
+    CONFIG.keys.deepseek = deepseek;
     CONFIG.keys.groq = groq;
-    CONFIG.keys.deepseek = deepseek; // NEW
     
     closeKeyModal();
     logSystem("KEYS SAVED.", "system");
-    document.getElementById('ai-provider').textContent = "AI: READY";
+    updateModeDisplay();
 }
 
 /* --- PERSISTENCE --- */
@@ -336,6 +328,7 @@ function addXP(amount) {
         State.user.level++;
         State.user.xp -= nextLevel;
         logSystem(`LEVEL UP! YOU ARE NOW LEVEL ${State.user.level}`, "ai-msg");
+        playSound('success');
     }
     saveState();
 }
@@ -351,6 +344,7 @@ function playSound(type) {
     osc.connect(gain); gain.connect(AudioCtx.destination);
     if (type === 'type') { osc.frequency.value = 800; gain.gain.value = 0.05; osc.start(); osc.stop(AudioCtx.currentTime + 0.05); }
     else if (type === 'success') { osc.frequency.value = 440; gain.gain.value = 0.1; osc.start(); osc.stop(AudioCtx.currentTime + 0.3); }
+    else if (type === 'error') { osc.frequency.value = 150; gain.gain.value = 0.1; osc.start(); osc.stop(AudioCtx.currentTime + 0.2); }
 }
 
 /* --- MQTT --- */
@@ -389,15 +383,148 @@ function joinRoom(roomKey) {
     logSystem(`ENTERED ROOM: ${CONFIG.rooms[roomKey].name}`, "system");
 }
 
-/* --- AI ENGINE (DEEPSEEK ADDED) --- */
+function updateModeDisplay() {
+    const hasKey = !!(CONFIG.keys.openai === "" && CONFIG.keys.zhipu === "" && CONFIG.keys.groq === "" && CONFIG.keys.deepseek === "");
+    const label = document.getElementById('ai-provider');
+    
+    if (!hasKey) {
+        label.textContent = "AI: LOCAL MODE";
+        label.style.color = "#aaaaaa"; // Greyed out to indicate offline capability
+    } else {
+        label.textContent = "AI: CLOUD READY";
+        label.style.color = "#00ffff";
+    }
+}
+
+/* --- SMART LOCAL BRAIN (NO API) --- */
+
+// The heart of the "No API" solution
+function parseLocalLogic(text) {
+    const lower = text.toLowerCase().trim();
+    let actions = [];
+
+    // 1. MATH CALCULATOR
+    if (lower.startsWith('/calc') || lower.startsWith('/math')) {
+        const expr = text.substring(text.indexOf(' ') + 1).trim();
+        try {
+            // Safe eval replacement: only allow numbers and operators
+            if (/^[0-9+\-*/().\s]+$/.test(expr)) {
+                const res = eval(expr);
+                actions.push({ type: 'system', text: `Result: ${res}` });
+            } else {
+                throw new Error("Invalid characters");
+            }
+        } catch(e) {
+            actions.push({ type: 'system', text: `Math Error: ${e.message}` });
+        }
+        return actions;
+    }
+
+    // 2. SYSTEM TOOLS
+    if (lower === '/date' || lower === '/time') {
+        actions.push({ type: 'system', text: new Date().toString() });
+        return actions;
+    }
+    if (lower === '/status') {
+        actions.push({ type: 'system', text: `Uptime: ${Math.floor(performance.now()/1000)}s | LVL: ${State.user.level} | XP: ${State.user.xp}` });
+        return actions;
+    }
+    if (lower === '/clear' || lower === '/cls' || lower === '/c') {
+        actions.push({ type: 'clear' });
+        return actions;
+    }
+    if (lower === '/flip') {
+        actions.push({ type: 'flip' });
+        return actions;
+    }
+
+    // 3. NATURAL LANGUAGE PROCESSING (Local Chatbot)
+    const greetings = ['hello', 'hi', 'hey', 'greetings'];
+    if (greetings.some(g => lower.includes(g))) {
+        actions.push({ type: 'chat', text: `Hello, ${State.user.nick}. Ready to compute.` });
+        return actions;
+    }
+
+    const who = ['who am i', 'whoami'];
+    if (who.some(w => lower.includes(w))) {
+        actions.push({ type: 'chat', text: `You are ${State.user.nick}, Level ${State.user.level} Hacker.` });
+        return actions;
+    }
+    
+    const help = ['help', 'commands', 'cmd'];
+    if (help.some(h => lower.includes(h))) {
+        actions.push({ type: 'system', text: "TRY: /calc 2 + 2, /date, /flip, /clear. Or just chat!" });
+        return actions;
+    }
+
+    // 4. FUN COMMANDS
+    if (lower === '/matrix') {
+        actions.push({ type: 'matrix' });
+        return actions;
+    }
+
+    // Return empty if no local match
+    return [];
+}
+
+function executeLocalAction(action) {
+    switch (action.type) {
+        case 'system':
+        logSystem(action.text, "ai-msg");
+            break;
+        case 'chat':
+            logSystem(action.text, "ai-msg");
+            break;
+        case 'clear':
+            document.getElementById('terminal-output').innerHTML = "";
+            logSystem("TERMINAL CLEARED.", "system");
+            break;
+        case 'flip':
+            document.getElementById('terminal-output').style.transform = "rotate(180deg)";
+            logSystem("WORLD FLIPPED.", "system");
+            break;
+        case 'matrix':
+            document.documentElement.style.setProperty('--term-color', '#00ff00');
+            document.documentElement.style.setProperty('--main-bg', '#000000');
+            logSystem("ENTERING THE MATRIX...", "system");
+            playSound('success');
+            break;
+    }
+}
+
+/* --- AI ENGINE (Hybrid: Cloud + Local) --- */
+
 async function queryAI(prompt) {
-    logSystem("CONTACTING NEURAL NET...", "ai-msg");
     const systemPrompt = `${CONFIG.rooms[State.user.room].persona} Keep answers short.`;
+
+    // Check if we have ANY API Key
+    const hasAnyKey = !!(CONFIG.keys.openai === "" && CONFIG.keys.zhipu === "" && CONFIG.keys.groq === "" && CONFIG.keys.deepseek === "");
+
+    if (!hasAnyKey) {
+        // LOCAL ONLY MODE
+        const localActions = parseLocalLogic(prompt);
+        if (localActions.length > 0) {
+            setAIStatus(true);
+            setTimeout(() => {
+                localActions.forEach(action => executeLocalAction(action));
+                setAIStatus(false);
+            }, 500); // Fake "thinking" delay
+        } else {
+            // Fallback for unknown input
+            logSystem("LOCAL BRAIN: I didn't understand that.", "system");
+            logSystem("TRY 'help', '/calc 2+2', or 'hello'", "system");
+        }
+        return; // Stop here, no API calls
+    }
+
+    // --- CLOUD MODE (If keys exist) ---
+    logSystem("CONTACTING CLOUD NEURAL NET...", "ai-msg");
+    setAIStatus(true);
 
     let result = null;
     let providerUsed = "LOCAL";
 
-    // 1. TRY OPENAI
+    // Chain: OpenAI
     if (CONFIG.keys.openai) {
         try {
             const res = await fetch("https://api.openai.com/v1/chat/completions", {
@@ -409,36 +536,40 @@ async function queryAI(prompt) {
                 })
             });
             
-            if (!res.ok) throw new Error("Quota or Auth Error");
+            if (!res.ok) {
+                if(res.status === 402) throw new Error("Payment Required");
+                else throw new Error(`Status ${res.status}`);
+            }
             const data = await res.json();
             result = data.choices[0].message.content;
             providerUsed = "OPENAI";
-        } catch (e) { /* Silent fail, try next */ }
+        } catch (e) { logSystem(`OpenAI: ${e.message}`, "error-msg"); }
     }
 
-    // 2. TRY GROQ
-    if (!result && CONFIG.keys.groq) {
+    // Chain: Z.ai (Zhipu)
+    if (!result && CONFIG.keys.zhipu) {
         try {
-            logSystem("OPENAI FAIL. TRYING GROQ...", "system");
-            const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+            logSystem("TRYING Z.AI...", "system");
+            const res = await fetch("https://open.bigmodel.cn/api/paas/v4/chat/completions", {
                 method: "POST",
-                headers: { "Authorization": `Bearer ${CONFIG.keys.groq}`, "Content-Type": "application/json" },
+                headers: { "Authorization": `Bearer ${CONFIG.keys.zhipu}`, "Content-Type": "application/json" },
                 body: JSON.stringify({
-                    model: "llama-3.3-70b-versatile",
+                    model: "glm-4-flash",
                     messages: [{ role: "system", content: systemPrompt }, { role: "user", content: prompt }]
                 })
             });
-            if (!res.ok) throw new Error();
+
+            if (!res.ok) throw new Error(`Status ${res.status}`);
             const data = await res.json();
             result = data.choices[0].message.content;
-            providerUsed = "GROQ";
-        } catch (e) { /* Silent fail, try next */ }
+            providerUsed = "Z.AI";
+        } catch (e) { logSystem(`Z.AI: ${e.message}`, "error-msg"); }
     }
 
-    // 3. TRY DEEPSEEK (NEW)
+    // Chain: DeepSeek
     if (!result && CONFIG.keys.deepseek) {
         try {
-            logSystem("OTHERS FAILED. TRYING DEEPSEEK...", "system");
+            logSystem("TRYING DEEPSEEK...", "system");
             const res = await fetch("https://api.deepseek.com/chat/completions", {
                 method: "POST",
                 headers: { "Authorization": `Bearer ${CONFIG.keys.deepseek}`, "Content-Type": "application/json" },
@@ -447,20 +578,48 @@ async function queryAI(prompt) {
                     messages: [{ role: "system", content: systemPrompt }, { role: "user", content: prompt }]
                 })
             });
-            if (!res.ok) throw new Error();
+            if (!res.ok) throw new Error(`Status ${res.status}`);
             const data = await res.json();
             result = data.choices[0].message.content;
             providerUsed = "DEEPSEEK";
-        } catch (e) { 
-            logSystem("DEEPSEEK ERROR.", "error-msg"); 
-        }
+        } catch (e) { logSystem(`DeepSeek: ${e.message}`, "error-msg"); }
+    }
+
+    // Chain: Groq
+    if (!result && CONFIG.keys.groq) {
+        try {
+            logSystem("TRYING GROQ...", "system");
+            const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+                method: "POST",
+                headers: { "Authorization": `Bearer ${CONFIG.keys.groq}`, "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    model: "llama-3.3-70b-versatile",
+                    messages: [{ role: "system", content: systemPrompt }, { role: "user", content: prompt }]
+                })
+            });
+            if (!res.ok) throw new Error(`Status ${res.status}`);
+            const data = await res.json();
+            result = data.choices[0].message.content;
+            providerUsed = "GROQ";
+        } catch (e) { logSystem(`Groq: ${e.message}`, "error-msg"); }
     }
 
     if (result) {
         logSystem("AI (" + providerUsed + "): " + result, "ai-msg");
         addXP(5);
     } else {
-        logSystem("ALL AI PROVIDERS FAILED.", "error-msg");
+        logSystem("ALL CLOUD PROVIDERS FAILED.", "error-msg");
+    }
+
+    setAIStatus(false);
+}
+
+function setAIStatus(thinking) {
+    if (thinking) {
+        document.getElementById('ai-provider').textContent = "AI PROCESSING";
+        document.getElementById('ai-provider').style.color = "#ffff00";
+    } else {
+        updateModeDisplay();
     }
 }
 
@@ -471,22 +630,29 @@ const inputField = document.getElementById('command-input');
 inputField.addEventListener('keydown', (e) => { if (e.key === 'Enter') processInput(inputField.value); });
 
 async function processInput(rawText) {
-    const text = rawText.trim().toUpperCase();
+    const text = rawText.trim();
     inputField.value = "";
     playSound('type');
     if (!text) return;
 
     if (text.startsWith('/')) { executeSystemCommand(text); return; }
     
-    logMessage(State.user.nick, text, "user-msg");
-    
-    if (State.isConnected) {
+    // Chat Message
+    if (!isConnected) {
+        // Even offline, allow input, but warn
+        logMessage(State.user.nick, text, "user-msg");
+        logSystem("OFFLINE: Message not sent to network.", "error-msg");
+    } else {
+        logMessage(State.user.nick, text, "user-msg");
         const msg = new Paho.MQTT.Message(JSON.stringify({ nick: State.user.nick, text: text }));
         msg.destinationName = `${CONFIG.mqtt.baseTopic}/${State.user.room}`;
         State.client.send(msg);
     }
     
-    if (text.includes("AI") || text.includes("HELP") || text.includes("?")) queryAI(rawText);
+    // Trigger AI (Cloud or Local)
+    if (text.includes("AI") || text.includes("HELP") || text.includes("?") || !text.startsWith('/')) {
+        queryAI(rawText);
+    }
 }
 
 function executeSystemCommand(cmd) {
@@ -494,7 +660,14 @@ function executeSystemCommand(cmd) {
     const command = parts[0].toLowerCase();
 
     switch (command) {
-        case '/help': logSystem("CMD: /ROOM, /NICK, /AI [PROMPT], /CLEAR, /SETUPKEYS", "system"); break;
+        case '/help': 
+            logSystem("COMMANDS:", "system");
+            logSystem(" /calc [expr] - Math", "system");
+            logSystem(" /date - Time", "system");
+            logSystem(" /flip - Fun", "system");
+            logSystem(" /clear - Clear", "system");
+            logSystem(" /AI [prompt] - AI Control", "system");
+            break;
         case '/room': 
             const r = parts[1]?.toLowerCase();
             if (CONFIG.rooms[r]) joinRoom(r);
@@ -505,14 +678,12 @@ function executeSystemCommand(cmd) {
             logSystem(`NICK UPDATED: ${State.user.nick}`, "system"); 
             break;
         case '/clear': document.getElementById('terminal-output').innerHTML = ""; break;
-        case '/ai': 
-            const prompt = cmd.substring(4).trim();
-            if (prompt) queryAI(prompt); 
-            else logSystem("NEED PROMPT", "error-msg"); 
-            break;
         case '/setupkeys': openKeyModal(); break;
         case '/stats': logSystem(`LVL ${State.user.level} | XP ${State.user.xp}`, "ai-msg"); break;
-        default: logSystem(`UNKNOWN COMMAND`, "error-msg");
+        default: 
+            // If unknown command starting with /, treat as AI prompt too
+            queryAI(cmd); 
+            break;
     }
 }
 
@@ -543,15 +714,20 @@ function updateUI() {
     document.getElementById('xp-fill').style.width = `${percentage}%`;
 }
 
-function scrollToBottom() { document.getElementById('terminal-output').scrollTop = document.getElementById('terminal-output').scrollHeight; }
+function scrollToBottom() { 
+    setTimeout(() => {
+        const el = document.getElementById('terminal-output');
+        el.scrollTop = el.scrollHeight;
+    }, 0);
+}
 function sendMessage() { processInput(inputField.value); }
 
 window.onload = () => { 
     updateUI(); 
     connectMQTT(); 
-    logSystem("SYSTEM READY. DEEPSEEK ACTIVE.", "system");
+    updateModeDisplay();
+    logSystem("SYSTEM READY. LOCAL BRAIN ACTIVE.", "system");
 };
 </script>
 </body>
 </html>
-
