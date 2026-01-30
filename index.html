@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>TermOS LT 🌌 // SECURE</title>
+<title>TermOS LT 🌌 // WORKING BUILD</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/paho-mqtt/1.0.1/mqttws31.min.js"></script>
 <style>
 /* --- STYLES --- */
@@ -129,6 +129,24 @@ input[type="text"] {
 @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0; } }
 @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
 
+/* KEY MODAL */
+#key-modal {
+    position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+    background: rgba(0,0,0,0.9);
+    z-index: 100;
+    display: flex; justify-content: center; align-items: center;
+}
+.key-box {
+    background: #000; border: 2px solid var(--term-color);
+    padding: 20px; width: 80%; max-width: 500px;
+    box-shadow: 0 0 20px var(--term-color);
+}
+.key-input {
+    width: 100%; background: #111; border: 1px solid var(--term-color);
+    color: var(--term-color); padding: 10px; margin-bottom: 10px;
+    font-family: var(--font-stack); font-size: 0.9rem;
+}
+
 @media (max-width: 700px) {
     #os-container { margin: 0; height: 100vh; border: none; }
     main { grid-template-columns: 1fr; }
@@ -158,23 +176,18 @@ input[type="text"] {
 
     <main>
         <div id="sidebar" class="sidebar">
-            <div style="color:var(--system-color)">INSTALLED PLUGINS</div>
-            <div id="plugin-list">
-                <div class="app-card" onclick="runPlugin('greeter')">👋 Auto-Greeter</div>
-                <div class="app-card" onclick="runPlugin('hacker_mode')">🕶️ Hacker Mode</div>
-            </div>
             <div style="color:var(--system-color)">SYSTEM</div>
+            <div class="app-card" onclick="openKeyModal()">🔑 SETUP KEYS</div>
             <div class="app-card" onclick="executeSystemCommand('/stats')">📊 Stats</div>
             <div class="app-card" onclick="executeSystemCommand('/avatar')">🎭 Avatar</div>
-            <div class="app-card" onclick="executeSystemCommand('/voice')">🗣️ Voice</div>
-            <div class="app-card" onclick="executeSystemCommand('/resetkeys')">🔑 Update Keys</div>
+            <div class="app-card" onclick="executeSystemCommand('/clear')">🗑️ Clear</div>
         </div>
         <div id="terminal-output">
             <div id="intro">
-                <p>BOOTING TermOS LT v3.1 (SECURE BUILD)...</p>
-                <p>NO HARDCODED CREDENTIALS FOUND.</p>
+                <p>BOOTING TermOS LT v3.2...</p>
+                <p>CHECKING CREDENTIALS...</p>
                 <p>&nbsp;</p>
-                <p>SYSTEM READY.</p>
+                <p>NOTE: If AI is offline, run /SETUPKEYS.</p>
             </div>
         </div>
     </main>
@@ -182,37 +195,41 @@ input[type="text"] {
     <footer>
         <span class="prompt">></span>
         <input type="text" id="command-input" autocomplete="off" autofocus placeholder="Enter command or chat...">
-        <button class="btn-icon" id="voice-btn" onclick="toggleVoice()">🎤</button>
         <button class="btn-icon" onclick="sendMessage()">⚡</button>
     </footer>
 </div>
 
-<script>
-/* --- SECURITY & CONFIG --- */
-const getSecureKey = (name) => {
-    let key = localStorage.getItem('termos_key_' + name);
-    if (!key || key === "null" || key === "") {
-        // Ask user for key ONLY if not found in storage
-        key = window.prompt(`SECURE CHECK: Enter your ${name} Key (stored locally):`);
-        if (key) {
-            localStorage.setItem('termos_key_' + name, key);
-        }
-    }
-    return key || "";
-};
+<!-- KEY INPUT MODAL -->
+<div id="key-modal" class="hidden">
+    <div class="key-box">
+        <h3 style="color:var(--system-color); margin-bottom:10px;">SECURE KEY SETUP</h3>
+        <div style="font-size:0.8rem; margin-bottom:10px; color:#ccc;">Keys are saved in your browser's LocalStorage. They are never sent to our servers, only to the AI provider.</div>
+        
+        <label>OpenAI Key (sk-...):</label>
+        <input type="password" id="input-openai" class="key-input" placeholder="sk-proj-...">
+        
+        <label>Groq Key (gsk-...):</label>
+        <input type="password" id="input-groq" class="key-input" placeholder="gsk_...">
+        
+        <div style="display:flex; justify-content:flex-end; gap:10px; margin-top:10px;">
+            <button class="btn-icon" onclick="closeKeyModal()">CANCEL</button>
+            <button class="btn-icon" style="background:var(--term-color); color:#000;" onclick="saveKeys()">SAVE & REBOOT</button>
+        </div>
+    </div>
+</div>
 
+<script>
+/* --- CONFIGURATION --- */
 const CONFIG = {
-    mqtt: { host: "broker.hivemq.com", port: 8884, baseTopic: "termos/lt/v4" },
-    // KEYS ARE NO LONGER HARDCODED. They are fetched via secure prompt.
+    mqtt: { host: "broker.hivemq.com", port: 8884, baseTopic: "termos/lt/v5" },
     keys: {
-        openai: getSecureKey('openai'),
-        groq: getSecureKey('groq'),
-        zhipu: getSecureKey('zhipu')
+        openai: localStorage.getItem('termos_key_openai') || "",
+        groq: localStorage.getItem('termos_key_groq') || ""
     },
     rooms: {
-        library: { name: "LIBRARY", persona: "You are a helpful Librarian AI. Be concise.", topic: "library" },
-        workshop: { name: "WORKSHOP", persona: "You are a Coder AI. Write code in markdown blocks.", topic: "workshop" },
-        lounge: { name: "LOUNGE", persona: "You are a fun Gamer AI. Be energetic.", topic: "lounge" }
+        library: { name: "LIBRARY", persona: "You are a helpful Librarian AI.", topic: "library" },
+        workshop: { name: "WORKSHOP", persona: "You are a Coder AI.", topic: "workshop" },
+        lounge: { name: "LOUNGE", persona: "You are a fun Gamer AI.", topic: "lounge" }
     }
 };
 
@@ -222,9 +239,34 @@ const State = {
     client: null,
     isConnected: false,
     voiceEnabled: false,
-    recognition: null,
-    synthesis: window.speechSynthesis
+    recognition: null
 };
+
+/* --- MODAL LOGIC --- */
+function openKeyModal() {
+    document.getElementById('input-openai').value = CONFIG.keys.openai;
+    document.getElementById('input-groq').value = CONFIG.keys.groq;
+    document.getElementById('key-modal').classList.remove('hidden');
+}
+
+function closeKeyModal() {
+    document.getElementById('key-modal').classList.add('hidden');
+}
+
+function saveKeys() {
+    const openai = document.getElementById('input-openai').value.trim();
+    const groq = document.getElementById('input-groq').value.trim();
+
+    localStorage.setItem('termos_key_openai', openai);
+    localStorage.setItem('termos_key_groq', groq);
+    
+    CONFIG.keys.openai = openai;
+    CONFIG.keys.groq = groq;
+    
+    closeKeyModal();
+    logSystem("KEYS SAVED. SYSTEM REBOOTING...", "system");
+    setTimeout(() => location.reload(), 1000);
+}
 
 /* --- PERSISTENCE --- */
 function saveState() {
@@ -239,7 +281,6 @@ function addXP(amount) {
         State.user.level++;
         State.user.xp -= nextLevel;
         logSystem(`LEVEL UP! YOU ARE NOW LEVEL ${State.user.level}`, "ai-msg");
-        playSound('success');
     }
     saveState();
 }
@@ -255,32 +296,6 @@ function playSound(type) {
     osc.connect(gain); gain.connect(AudioCtx.destination);
     if (type === 'type') { osc.frequency.value = 800; gain.gain.value = 0.05; osc.start(); osc.stop(AudioCtx.currentTime + 0.05); }
     else if (type === 'success') { osc.frequency.value = 440; gain.gain.value = 0.1; osc.start(); osc.stop(AudioCtx.currentTime + 0.3); }
-}
-
-/* --- VOICE --- */
-function initVoice() {
-    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-    if (!SpeechRecognition) return;
-    State.recognition = new SpeechRecognition();
-    State.recognition.continuous = false;
-    State.recognition.lang = 'en-US';
-    State.recognition.onresult = (event) => {
-        processInput(event.results[0][0].transcript);
-    };
-    State.recognition.onend = () => { document.getElementById('voice-btn').classList.remove('active'); };
-}
-
-function toggleVoice() {
-    if (!State.recognition) initVoice();
-    if (State.voiceEnabled) { State.recognition.stop(); State.voiceEnabled = false; }
-    else { State.recognition.start(); document.getElementById('voice-btn').classList.add('active'); State.voiceEnabled = true; }
-}
-
-function speak(text) {
-    if (State.synthesis.speaking) State.synthesis.cancel();
-    const utterance = new SpeechSynthesisUtterance(text);
-    utterance.pitch = 0.8; utterance.rate = 1.2;
-    State.synthesis.speak(utterance);
 }
 
 /* --- MQTT --- */
@@ -305,7 +320,7 @@ function connectMQTT() {
             joinRoom(State.user.room);
             logSystem("UPLINK ESTABLISHED.", "system");
         },
-        onFailure: () => { logSystem("MQTT CONNECTION FAILED", "error-msg"); }
+        onFailure: (e) => { logSystem("MQTT FAILED: " + e.errorMessage, "error-msg"); }
     });
 }
 
@@ -322,35 +337,31 @@ function joinRoom(roomKey) {
 /* --- AI ENGINE --- */
 async function queryAI(prompt) {
     logSystem("CONTACTING NEURAL NET...", "ai-msg");
-    const systemPrompt = `${CONFIG.rooms[State.user.room].persona} You are an agent in TermOS. 
-    You have tools: "switch_room", "play_music", "fix_app". 
-    If you use a tool, output it as a JSON block inside ```json ... ```. 
-    Otherwise, just answer user.`;
+    const systemPrompt = `${CONFIG.rooms[State.user.room].persona} Keep answers short.`;
 
     let result = null;
-    
+    let providerUsed = "LOCAL";
+
     // TRY OPENAI
-    if (CONFIG.keys.openai && CONFIG.keys.openai.startsWith("sk-")) {
+    if (CONFIG.keys.openai) {
         try {
             const res = await fetch("https://api.openai.com/v1/chat/completions", {
                 method: "POST",
                 headers: { "Authorization": `Bearer ${CONFIG.keys.openai}`, "Content-Type": "application/json" },
                 body: JSON.stringify({
                     model: "gpt-4o-mini",
-                    messages: [{ role: "system", content: systemPrompt }, { role: "user", content: prompt }],
-                    temperature: 0.7
+                    messages: [{ role: "system", content: systemPrompt }, { role: "user", content: prompt }]
                 })
             });
-            if (res.ok) {
-                const data = await res.json();
-                result = data.choices[0].message.content;
-                document.getElementById('ai-provider').textContent = "AI: OPENAI";
-            } else { throw new Error(res.status); }
-        } catch (e) { logSystem(`OPENAI ERROR: ${e.message}`, "error-msg"); }
+            if (!res.ok) throw new Error(`OpenAI Error: ${res.status}`);
+            const data = await res.json();
+            result = data.choices[0].message.content;
+            providerUsed = "OPENAI";
+        } catch (e) { logSystem(e.message, "error-msg"); }
     }
 
     // TRY GROQ
-    if (!result && CONFIG.keys.groq && CONFIG.keys.groq.startsWith("gsk_")) {
+    if (!result && CONFIG.keys.groq) {
         try {
             const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
                 method: "POST",
@@ -360,46 +371,23 @@ async function queryAI(prompt) {
                     messages: [{ role: "system", content: systemPrompt }, { role: "user", content: prompt }]
                 })
             });
-            if (res.ok) {
-                const data = await res.json();
-                result = data.choices[0].message.content;
-                document.getElementById('ai-provider').textContent = "AI: GROQ";
-            }
-        } catch (e) { logSystem(`GROQ ERROR: ${e.message}`, "error-msg"); }
+            if (!res.ok) throw new Error(`Groq Error: ${res.status}`);
+            const data = await res.json();
+            result = data.choices[0].message.content;
+            providerUsed = "GROQ";
+        } catch (e) { logSystem(e.message, "error-msg"); }
     }
 
-    // PARSE RESULT
-    if (result) {
-        const jsonMatch = result.match(/```json\s*([\s\S]*?)\s*```/);
-        if (jsonMatch) {
-            try {
-                const toolData = JSON.parse(jsonMatch[1]);
-                handleToolCall(toolData);
-                logSystem("AI: Executing Protocol...", "cmd-msg");
-            } catch (e) { logSystem("AI: " + result, "ai-msg"); }
-        } else {
-            logSystem("AI: " + result, "ai-msg");
-            speak(result);
-        }
-        addXP(10);
+    // FALLBACK / SIMULATION
+    if (!result) {
+        result = "My neural pathways are offline (No Keys). Please run /SETUPKEYS to connect me to the cloud.";
+        logSystem(result, "ai-msg");
+        logSystem("HINT: Click APPS -> SETUP KEYS", "system");
     } else {
-        logSystem("ALL AI PROVIDERS OFFLINE OR KEY MISSING. RUN /RESETKEYS", "error-msg");
+        logSystem("AI (" + providerUsed + "): " + result, "ai-msg");
     }
-}
-
-function handleToolCall(data) {
-    if (data.switch_room) joinRoom(data.switch_room);
-    if (data.play_music) {
-        playSound('success');
-        logSystem("🎵 PLAYING GENERATED AUDIO...", "cmd-msg");
-    }
-    if (data.fix_app) {
-        try {
-            const func = new Function(data.fix_app);
-            func();
-            logSystem("APP UPDATED SUCCESSFULLY.", "system");
-        } catch(e) { logSystem("UPDATE FAILED: " + e.message, "error-msg"); }
-    }
+    
+    addXP(5);
 }
 
 /* --- UI LOGIC --- */
@@ -424,7 +412,8 @@ async function processInput(rawText) {
         State.client.send(msg);
     }
     
-    if (text.includes("AI") || text.includes("HELP")) queryAI(rawText);
+    // Simple trigger for AI
+    if (text.includes("AI") || text.includes("HELP") || text.includes("?")) queryAI(rawText);
 }
 
 function executeSystemCommand(cmd) {
@@ -432,7 +421,9 @@ function executeSystemCommand(cmd) {
     const command = parts[0].toLowerCase();
 
     switch (command) {
-        case '/help': logSystem("COMMANDS: /ROOM, /NICK, /AI [PROMPT], /CLEAR, /RESETKEYS", "system"); break;
+        case '/help': 
+            logSystem("CMD: /ROOM, /NICK, /AI [PROMPT], /CLEAR, /SETUPKEYS", "system"); 
+            break;
         case '/room': 
             const r = parts[1]?.toLowerCase();
             if (CONFIG.rooms[r]) joinRoom(r);
@@ -448,28 +439,13 @@ function executeSystemCommand(cmd) {
             if (prompt) queryAI(prompt); 
             else logSystem("NEED PROMPT", "error-msg"); 
             break;
+        case '/setupkeys': 
+            openKeyModal(); 
+            break;
         case '/stats': logSystem(`LVL ${State.user.level} | XP ${State.user.xp}`, "ai-msg"); break;
         case '/avatar': document.getElementById('avatar-box').textContent = AVATARS[State.user.level]; break;
-        case '/voice': toggleVoice(); break;
-        case '/resetkeys':
-            // Force reset of keys
-            localStorage.removeItem('termos_key_openai');
-            localStorage.removeItem('termos_key_groq');
-            localStorage.removeItem('termos_key_zhipu');
-            location.reload();
-            break;
         default: logSystem(`UNKNOWN COMMAND`, "error-msg");
     }
-}
-
-function runPlugin(name) {
-    if (name === 'greeter') logMessage("SYS", "Welcome to TermOS! Systems Nominal.", "system");
-    if (name === 'hacker_mode') {
-        document.documentElement.style.setProperty('--term-color', '#00ff00');
-        document.body.style.backgroundColor = '#000';
-        logSystem("HACKER MODE ENGAGED.", "cmd-msg");
-    }
-    addXP(20);
 }
 
 function logMessage(nick, text, type) {
@@ -500,8 +476,21 @@ function updateUI() {
 }
 
 function scrollToBottom() { document.getElementById('terminal-output').scrollTop = document.getElementById('terminal-output').scrollHeight; }
+function sendMessage() { processInput(inputField.value); }
 
-window.onload = () => { updateUI(); connectMQTT(); logSystem("SYSTEM READY. KEYS SECURE.", "system"); };
+window.onload = () => { 
+    updateUI(); 
+    connectMQTT(); 
+    logSystem("SYSTEM READY.", "system");
+    
+    // Auto-prompt if no keys
+    if (!CONFIG.keys.openai && !CONFIG.keys.groq) {
+        setTimeout(() => {
+            logSystem("WARNING: NO AI KEYS DETECTED.", "error-msg");
+            logSystem("Click APPS -> SETUP KEYS to enable AI.", "system");
+        }, 1000);
+    }
+};
 </script>
 </body>
 </html>
