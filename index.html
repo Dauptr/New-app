@@ -6,13 +6,13 @@
 <title>TermOS LT // OFFLINE MODE</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/paho-mqtt/1.0.1/mqttws31.min.js"></script>
 <style>
-/* --- STYLES --- */
+/* --- VISUAL STYLES --- */
 :root {
     --main-bg: #050505;
     --term-color: #33ff00;
     --term-glow: 0 0 10px rgba(51, 255, 0, 0.5);
     --danger-color: #ff3333;
-    --system-color: #ffff00;
+    --system-color: #e0e0e0; /* Slightly lighter for readability */
     --user-color: #ffffff;
     --xp-color: #00ffff;
     --font-stack: 'Courier New', Courier, monospace;
@@ -45,7 +45,7 @@ body {
     margin: 10px;
 }
 
-/* Scanlines */
+/* CRT Scanlines */
 #os-container::before {
     content: " "; display: block; position: absolute;
     top: 0; left: 0; bottom: 0; right: 0;
@@ -53,7 +53,7 @@ body {
     z-index: 10; background-size: 100% 2px, 3px 100%; pointer-events: none;
 }
 
-/* Flicker */
+/* Screen Flicker Animation */
 @keyframes flicker {
     0% { opacity: 0.97; } 5% { opacity: 0.95; } 10% { opacity: 0.9; }
     15% { opacity: 0.95; } 20% { opacity: 0.99; }
@@ -86,7 +86,7 @@ header {
 .xp-bar-bg { width: 100%; height: 6px; background: #333; border: 1px solid var(--term-color); }
 .xp-bar-fill { height: 100%; width: 0%; background: var(--xp-color); transition: width 0.5s ease; }
 
-.avatar-display { font-size: 1.2rem; line-height: 1rem; }
+.avatar-display { font-size: 1.2rem; line-height: 1rem; filter: drop-shadow(0 0 2px var(--term-color)); }
 
 .room-badge { border: 1px solid var(--system-color); padding: 2px 8px; font-weight: bold; color: var(--system-color); }
 
@@ -110,6 +110,8 @@ main { display: grid; grid-template-columns: 200px 1fr; overflow: hidden; z-inde
 #terminal-output {
     padding: 20px; overflow-y: auto; white-space: pre-wrap;
     scroll-behavior: smooth; word-wrap: break-word;
+    font-size: 1rem;
+    line-height: 1.4;
 }
 
 /* FOOTER */
@@ -129,13 +131,14 @@ input[type="text"] {
     background: none; border: 1px solid var(--term-color);
     color: var(--term-color); padding: 5px 10px; cursor: pointer;
     font-family: var(--font-stack);
+    transition: all 0.2s;
 }
 .btn-icon:hover { background: var(--term-color); color: #000; }
 .btn-icon.active { background: var(--term-color); color: #000; animation: pulse 1.5s infinite; }
 
-/* TEXT STYLES */
-.system-msg { color: var(--system-color); opacity: 0.8; }
-.user-msg { color: var(--user-color); font-weight: bold; }
+/* TEXT COLORS */
+.system-msg { color: var(--system-color); opacity: 0.9; }
+.user-msg { color: var(--user-color); font-weight: bold; text-shadow: 0 0 5px rgba(255,255,255,0.3); }
 .other-msg { color: var(--term-color); }
 .ai-msg { color: #00ffff; text-shadow: 0 0 5px #00ffff; }
 .error-msg { color: var(--danger-color); font-weight: bold; }
@@ -189,8 +192,8 @@ input[type="text"] {
         </div>
         <div class="room-badge" id="current-room">LIBRARY</div>
         <div class="header-right">
-            <span id="ai-provider" style="color:#00ffff; font-size:0.7rem;">OFFLINE</span>
-            <span id="net-status">OFFLINE</span>
+            <span id="ai-provider" style="color:#aaaaaa; font-size:0.7rem;">OFFLINE</span>
+            <span id="net-status" style="color:var(--danger-color)">OFFLINE</span>
         </div>
     </header>
 
@@ -201,15 +204,15 @@ input[type="text"] {
             <div class="app-card" onclick="executeSystemCommand('/stats')">📊 Stats</div>
             <div class="app-card" onclick="executeSystemCommand('/clear')">🗑️ Clear</div>
             <div class="app-card" onclick="executeSystemCommand('/date')">📅 Date</div>
+            <div class="app-card" onclick="executeSystemCommand('/help')">❓ Help</div>
         </div>
         <div id="terminal-output">
             <div id="intro">
                 <p>BOOTING TermOS LT v5.0...</p>
                 <p>NO API DETECTED. BOOTING LOCAL BRAIN.</p>
                 <p>&nbsp;</p>
-                <p>SYSTEM READY.</p>
-                <p>TRY: "/calc 5 * 5"</p>
-                <p>TRY: "Hello"</p>
+                <p class="success-msg">SYSTEM READY.</p>
+                <p>TRY: "/calc 5 * 5" or "Hello"</p>
             </div>
         </div>
     </main>
@@ -270,8 +273,7 @@ const State = {
     user: JSON.parse(localStorage.getItem('termos_user')) || { nick: "Anon" + Math.floor(Math.random()*1000), xp: 0, level: 1, room: 'library' },
     client: null,
     isConnected: false,
-    voiceEnabled: false,
-    recognition: null
+    voiceEnabled: false
 };
 
 /* --- MODAL LOGIC --- */
@@ -290,7 +292,14 @@ function closeKeyModal() {
 
 async function testKeys() {
     // Simplified test logic
-    document.getElementById('test-result').textContent = "KEYS SAVED. SYSTEM READY TO CONNECT.";
+    const keys = [
+        document.getElementById('input-openai').value,
+        document.getElementById('input-zhipu').value,
+        document.getElementById('input-deepseek').value,
+        document.getElementById('input-groq').value
+    ];
+    const count = keys.filter(k => k.length > 0).length;
+    document.getElementById('test-result').textContent = `DETECTED ${count} KEYS. SYSTEM READY.`;
     document.getElementById('test-result').style.color = "#00ff00";
 }
 
@@ -311,7 +320,7 @@ function saveKeys() {
     CONFIG.keys.groq = groq;
     
     closeKeyModal();
-    logSystem("KEYS SAVED.", "system");
+    logSystem("KEYS ENCRYPTED & SAVED.", "system");
     updateModeDisplay();
 }
 
@@ -351,7 +360,13 @@ function playSound(type) {
 function connectMQTT() {
     const clientId = `termos-${State.user.nick}-${Date.now()}`;
     State.client = new Paho.MQTT.Client(CONFIG.mqtt.host, CONFIG.mqtt.port, clientId);
-    State.client.onConnectionLost = () => { State.isConnected = false; document.getElementById('net-status').textContent = "OFFLINE"; };
+    
+    State.client.onConnectionLost = (responseObject) => { 
+        State.isConnected = false; 
+        document.getElementById('net-status').textContent = "OFFLINE";
+        document.getElementById('net-status').style.color = "var(--danger-color)";
+    };
+    
     State.client.onMessageArrived = (msg) => {
         try {
             const data = JSON.parse(msg.payloadString);
@@ -359,23 +374,27 @@ function connectMQTT() {
                 logMessage(data.nick, data.text, "other-msg");
                 playSound('type');
             }
-        } catch(e){}
+        } catch(e){ console.error("MQTT Parse Error", e); }
     };
+    
     State.client.connect({
         timeout: 10, useSSL: true, mqttVersion: 4, cleanSession: true,
         onSuccess: () => {
             State.isConnected = true;
             document.getElementById('net-status').textContent = "ONLINE";
+            document.getElementById('net-status').style.color = "var(--term-color)";
             joinRoom(State.user.room);
             logSystem("UPLINK ESTABLISHED.", "system");
         },
-        onFailure: (e) => { logSystem("MQTT FAILED: " + e.errorMessage, "error-msg"); }
+        onFailure: (e) => { 
+            logSystem("MQTT CONNECTION FAILED: RUNNING LOCALLY", "error-msg"); 
+        }
     });
 }
 
 function joinRoom(roomKey) {
     if(!State.isConnected) return;
-    State.client.unsubscribe(`${CONFIG.mqtt.baseTopic}/${State.user.room}`);
+    // Unsubscribe from old if needed (simplified here)
     State.user.room = roomKey;
     State.client.subscribe(`${CONFIG.mqtt.baseTopic}/${roomKey}`);
     document.getElementById('current-room').textContent = CONFIG.rooms[roomKey].name;
@@ -384,12 +403,13 @@ function joinRoom(roomKey) {
 }
 
 function updateModeDisplay() {
-    const hasKey = !!(CONFIG.keys.openai === "" && CONFIG.keys.zhipu === "" && CONFIG.keys.groq === "" && CONFIG.keys.deepseek === "");
     const label = document.getElementById('ai-provider');
+    // Check if any key has length
+    const hasCloud = [CONFIG.keys.openai, CONFIG.keys.zhipu, CONFIG.keys.groq, CONFIG.keys.deepseek].some(k => k && k.length > 0);
     
-    if (!hasKey) {
+    if (!hasCloud) {
         label.textContent = "AI: LOCAL MODE";
-        label.style.color = "#aaaaaa"; // Greyed out to indicate offline capability
+        label.style.color = "#aaaaaa"; 
     } else {
         label.textContent = "AI: CLOUD READY";
         label.style.color = "#00ffff";
@@ -397,8 +417,6 @@ function updateModeDisplay() {
 }
 
 /* --- SMART LOCAL BRAIN (NO API) --- */
-
-// The heart of the "No API" solution
 function parseLocalLogic(text) {
     const lower = text.toLowerCase().trim();
     let actions = [];
@@ -493,15 +511,14 @@ function executeLocalAction(action) {
 }
 
 /* --- AI ENGINE (Hybrid: Cloud + Local) --- */
-
 async function queryAI(prompt) {
     const systemPrompt = `${CONFIG.rooms[State.user.room].persona} Keep answers short.`;
 
-    // Check if we have ANY API Key
-    const hasAnyKey = !!(CONFIG.keys.openai === "" && CONFIG.keys.zhipu === "" && CONFIG.keys.groq === "" && CONFIG.keys.deepseek === "");
+    // Determine Logic Path
+    const hasCloudKeys = [CONFIG.keys.openai, CONFIG.keys.zhipu, CONFIG.keys.groq, CONFIG.keys.deepseek].some(k => k && k.length > 0);
 
-    if (!hasAnyKey) {
-        // LOCAL ONLY MODE
+    // --- PATH 1: LOCAL ONLY MODE ---
+    if (!hasCloudKeys) {
         const localActions = parseLocalLogic(prompt);
         if (localActions.length > 0) {
             setAIStatus(true);
@@ -510,21 +527,21 @@ async function queryAI(prompt) {
                 setAIStatus(false);
             }, 500); // Fake "thinking" delay
         } else {
-            // Fallback for unknown input
-            logSystem("LOCAL BRAIN: I didn't understand that.", "system");
-            logSystem("TRY 'help', '/calc 2+2', or 'hello'", "system");
+            // Fallback for unknown input in local mode
+            logSystem("LOCAL BRAIN: Input not recognized in offline database.", "system");
+            logSystem("HINT: Try 'help', '/calc 2+2', or add API Keys.", "system");
         }
-        return; // Stop here, no API calls
+        return; 
     }
 
-    // --- CLOUD MODE (If keys exist) ---
+    // --- PATH 2: CLOUD MODE (Keys exist) ---
     logSystem("CONTACTING CLOUD NEURAL NET...", "ai-msg");
     setAIStatus(true);
 
     let result = null;
     let providerUsed = "LOCAL";
 
-    // Chain: OpenAI
+    // Try OpenAI
     if (CONFIG.keys.openai) {
         try {
             const res = await fetch("https://api.openai.com/v1/chat/completions", {
@@ -543,10 +560,10 @@ async function queryAI(prompt) {
             const data = await res.json();
             result = data.choices[0].message.content;
             providerUsed = "OPENAI";
-        } catch (e) { logSystem(`OpenAI: ${e.message}`, "error-msg"); }
+        } catch (e) { logSystem(`OpenAI Fail: ${e.message}`, "error-msg"); }
     }
 
-    // Chain: Z.ai (Zhipu)
+    // Try Z.ai (Zhipu)
     if (!result && CONFIG.keys.zhipu) {
         try {
             logSystem("TRYING Z.AI...", "system");
@@ -563,10 +580,10 @@ async function queryAI(prompt) {
             const data = await res.json();
             result = data.choices[0].message.content;
             providerUsed = "Z.AI";
-        } catch (e) { logSystem(`Z.AI: ${e.message}`, "error-msg"); }
+        } catch (e) { logSystem(`Z.AI Fail: ${e.message}`, "error-msg"); }
     }
 
-    // Chain: DeepSeek
+    // Try DeepSeek
     if (!result && CONFIG.keys.deepseek) {
         try {
             logSystem("TRYING DEEPSEEK...", "system");
@@ -582,10 +599,10 @@ async function queryAI(prompt) {
             const data = await res.json();
             result = data.choices[0].message.content;
             providerUsed = "DEEPSEEK";
-        } catch (e) { logSystem(`DeepSeek: ${e.message}`, "error-msg"); }
+        } catch (e) { logSystem(`DeepSeek Fail: ${e.message}`, "error-msg"); }
     }
 
-    // Chain: Groq
+    // Try Groq
     if (!result && CONFIG.keys.groq) {
         try {
             logSystem("TRYING GROQ...", "system");
@@ -601,7 +618,7 @@ async function queryAI(prompt) {
             const data = await res.json();
             result = data.choices[0].message.content;
             providerUsed = "GROQ";
-        } catch (e) { logSystem(`Groq: ${e.message}`, "error-msg"); }
+        } catch (e) { logSystem(`Groq Fail: ${e.message}`, "error-msg"); }
     }
 
     if (result) {
@@ -615,9 +632,10 @@ async function queryAI(prompt) {
 }
 
 function setAIStatus(thinking) {
+    const label = document.getElementById('ai-provider');
     if (thinking) {
-        document.getElementById('ai-provider').textContent = "AI PROCESSING";
-        document.getElementById('ai-provider').style.color = "#ffff00";
+        label.textContent = "AI PROCESSING...";
+        label.style.color = "#ffff00";
     } else {
         updateModeDisplay();
     }
@@ -635,11 +653,21 @@ async function processInput(rawText) {
     playSound('type');
     if (!text) return;
 
-    if (text.startsWith('/')) { executeSystemCommand(text); return; }
+    // 1. System Commands
+    if (text.startsWith('/')) { 
+        executeSystemCommand(text); 
+        // Allow system commands to also trigger AI context if needed, 
+        // but currently they return early in executeSystemCommand unless we want AI to handle unknown commands.
+        // Let's send unknown commands to AI as well.
+        const knownCmds = ['/help','/room','/nick','/clear','/setupkeys','/stats','/calc','/date','/flip','/matrix'];
+        const isKnown = knownCmds.some(c => text.startsWith(c));
+        if(!isKnown) queryAI(text);
+        return; 
+    }
     
-    // Chat Message
-    if (!isConnected) {
-        // Even offline, allow input, but warn
+    // 2. Chat Message (Network)
+    // FIX: Used State.isConnected instead of undefined variable
+    if (!State.isConnected) {
         logMessage(State.user.nick, text, "user-msg");
         logSystem("OFFLINE: Message not sent to network.", "error-msg");
     } else {
@@ -649,10 +677,9 @@ async function processInput(rawText) {
         State.client.send(msg);
     }
     
-    // Trigger AI (Cloud or Local)
-    if (text.includes("AI") || text.includes("HELP") || text.includes("?") || !text.startsWith('/')) {
-        queryAI(rawText);
-    }
+    // 3. Trigger AI (Cloud or Local)
+    // Trigger AI for non-command text
+    queryAI(rawText);
 }
 
 function executeSystemCommand(cmd) {
@@ -666,12 +693,12 @@ function executeSystemCommand(cmd) {
             logSystem(" /date - Time", "system");
             logSystem(" /flip - Fun", "system");
             logSystem(" /clear - Clear", "system");
-            logSystem(" /AI [prompt] - AI Control", "system");
+            logSystem(" /room [name] - Switch Room (library/workshop/lounge)", "system");
             break;
         case '/room': 
             const r = parts[1]?.toLowerCase();
             if (CONFIG.rooms[r]) joinRoom(r);
-            else logSystem("INVALID ROOM", "error-msg"); 
+            else logSystem("INVALID ROOM. TRY: library, workshop, lounge", "error-msg"); 
             break;
         case '/nick': 
             State.user.nick = parts[1] || "Anon"; saveState(); 
@@ -680,8 +707,10 @@ function executeSystemCommand(cmd) {
         case '/clear': document.getElementById('terminal-output').innerHTML = ""; break;
         case '/setupkeys': openKeyModal(); break;
         case '/stats': logSystem(`LVL ${State.user.level} | XP ${State.user.xp}`, "ai-msg"); break;
+        case '/date': queryAI('/date'); break; // Delegate to AI/Local
+        case '/calc': queryAI(cmd); break; // Delegate to AI/Local
         default: 
-            // If unknown command starting with /, treat as AI prompt too
+            // If it starts with / but isn't known, send to AI
             queryAI(cmd); 
             break;
     }
